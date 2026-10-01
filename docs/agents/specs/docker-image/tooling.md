@@ -42,9 +42,10 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 |----------|---------|
 | `SHELLCHECK_IMAGE` | `?= koalaman/shellcheck:v0.11.0` |
 | `BATS_IMAGE` | `?= bats/bats:1.14.0` |
+| `IMAGE` | `?= darthjee/vault:dev`; tag applied by `build-image`. |
 | `DOCKER_VERSION` | Unset; the Dockerfile `ARG` default (`29.8.2`) applies ([image.md](image.md#base-image)). |
 
-**Stubs:** #4 adds `build-image`, `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#5, #7, #9 and #9) and exits 0. `release` still fails fast without `TAG`, so the contract holds from the start.
+**Stubs:** #4 adds `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#7, #9 and #9) and exits 0. `build-image` is implemented in #5. `release` still fails fast without `TAG`, so the contract holds from the start.
 
 ## Lint and unit test tool images
 
