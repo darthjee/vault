@@ -58,6 +58,8 @@ Changes compared with [flow.md](../../flow.md). The SIGTERM / SIGINT trap is ins
 | 6b. SIGTERM / SIGINT | `docker compose down`, then stop dockerd and wait for it. | Unchanged | #6 |
 | 7. Exit | With compose's exit code, on both 6a and 6b. | Clarified for 6b | #6 |
 
+Compose runs in the background and the entrypoint `wait`s for it. Bash defers traps while a foreground child runs; `wait` returns as soon as a trapped signal arrives, so the shutdown sequence starts at once.
+
 ## Exit codes and messages
 
 | Situation | Exit code | Message |
@@ -68,9 +70,10 @@ Changes compared with [flow.md](../../flow.md). The SIGTERM / SIGINT trap is ins
 | Invalid `VAULT_DOCKERD_TIMEOUT` | 1 | `VAULT_DOCKERD_TIMEOUT must be a positive integer, got: '<value>'` |
 | dockerd timeout | 1 | `dockerd failed to start; are you running with --privileged (or the sysbox runtime)?` Dockerd is stopped first. |
 | Tarball load fails | 1 | `failed to load image tarball: <file>`. Dockerd is stopped first. |
-| Signal before compose started | #6 decides and records it here | — |
+| Signal before compose started | `128 + signal`: 143 (SIGTERM), 130 (SIGINT). Dockerd is stopped first if it was started. | — |
+| `compose down` fails during shutdown | compose's exit code (unchanged) | Warning on stderr; dockerd is still stopped. |
 
-Every Vault-side failure in #5 exits `1`; messages go to stderr. The remaining values are left to #6.
+Every Vault-side failure in #5 exits `1`; messages go to stderr. #6 sets the signal-related values above; no exit code is left undecided.
 
 ## Edge cases
 
@@ -82,7 +85,7 @@ Every Vault-side failure in #5 exits `1`; messages go to stderr. The remaining v
 | 4 | `/vault/images` missing or has no `*.tar` | Skip silently. | #5 | bats (#5); smoke test (#7) runs without tarballs |
 | 5 | A tarball fails to load | Stop dockerd and exit non-zero; the message names the file. | #5 | bats (#5) |
 | 6 | No compose file in `/vault` | No pre-check: compose prints its own error, then Vault stops dockerd and exits with compose's exit code. | #6 | bats (#6) |
-| 7 | A signal arrives before compose has started | Stop dockerd and exit. | #6 | bats (#6) |
+| 7 | A signal arrives before compose has started | Stop dockerd (if it was started) and exit with `128 + signal` (143 for SIGTERM, 130 for SIGINT). | #6 | bats (#6) |
 | 8 | A second signal arrives during shutdown | Ignored; the shutdown already in progress continues. | #6 | bats (#6) |
 | 9 | `compose down` takes longer than `docker stop`'s 10s grace period | Documentation only: recommend `docker stop -t` / `--stop-timeout`. | #10 | documentation only |
 | 10 | Two containers share one `/var/lib/docker` volume | Documentation only: not detected. | #10 | documentation only |
