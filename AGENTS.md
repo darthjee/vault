@@ -92,6 +92,9 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Contributing](docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](docs/agents/issues/) | Detailed specs for open issues. |
+| [Docker image spec](docs/agents/specs/docker-image/) | Temporary spec for epic #2 (removed by #10). |
+
+During epic #2, `docs/agents/specs/docker-image/` overrides these docs where they conflict.
 
 ### Issues (`docs/agents/issues/`)
 
