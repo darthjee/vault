@@ -40,15 +40,16 @@ See [architecture.md → Image](../../architecture.md#image); in addition:
 See [flow.md](../../flow.md) step 1; **instead:**
 
 - `dockerd` is always started with an explicit `--host=unix:///var/run/docker.sock`. It never listens on TCP.
-- Reason: with an empty `DOCKER_TLS_CERTDIR`, the dind `dockerd-entrypoint.sh` is believed to add an unauthenticated `tcp://0.0.0.0:2375` host. **To be verified** by #5 against the pinned version; #7 asserts that nothing listens on 2375.
+- Reason: **verified by #5 on `docker:29.8.2-dind`**. When `dockerd-entrypoint.sh` gets no arguments (or a first argument starting with `-`), it builds its own `--host` list; with an empty `DOCKER_TLS_CERTDIR` that list is `--host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375`, an unauthenticated TCP listener. Vault passes `dockerd --host=unix:///var/run/docker.sock` explicitly, so the entrypoint skips its defaults. Checked at runtime: `netstat -ltn` inside the container shows no listener. #7 asserts that nothing listens on 2375.
+- The dind entrypoint runs dockerd under `docker-init` (tini). Because tini is not PID 1, it logs a "not running as PID 1" warning at startup; harmless for #5.
 
 ## Entrypoint flow
 
-Changes compared with [flow.md](../../flow.md). The SIGTERM / SIGINT trap is installed before step 1, so a signal at any point is handled (see [Edge cases](#edge-cases) 7–8).
+Changes compared with [flow.md](../../flow.md). The SIGTERM / SIGINT trap is installed by #6 (#5 has no trap) before step 1, so a signal at any point is handled (see [Edge cases](#edge-cases) 7–8).
 
 | Step | Behaviour | Change vs flow.md | Issue |
 |------|-----------|-------------------|-------|
-| 1. Pre-checks | Validate `VAULT_DOCKERD_TIMEOUT` (positive integer). Run a fast privilege probe: a harmless privileged operation (e.g. mounting a tmpfs) that succeeds under both `--privileged` and Sysbox. The exact probe is **to be decided** by #5. | New | #5 |
+| 1. Pre-checks | Validate `VAULT_DOCKERD_TIMEOUT` (positive integer). Run a fast privilege probe: mount a tmpfs on a `mktemp -d` directory, then unmount and remove it. Mounting needs `CAP_SYS_ADMIN`, which both `--privileged` and Sysbox grant; a default container fails at once. | New | #5 |
 | 2. Start dockerd | Background, with explicit unix `--host` ([Dockerd startup](#dockerd-startup)). | Changed | #5 |
 | 3. Wait for dockerd | Poll `docker info` up to `VAULT_DOCKERD_TIMEOUT` seconds. | Unchanged | #5 |
 | 4. Preload images | `docker load -i` each `/vault/images/*.tar`. | Unchanged | #5 |
@@ -63,13 +64,13 @@ Changes compared with [flow.md](../../flow.md). The SIGTERM / SIGINT trap is ins
 |-----------|-----------|---------|
 | Compose exits on its own | compose's exit code | compose's own output |
 | SIGTERM / SIGINT after compose started | compose's exit code (0 on a clean `docker stop`, asserted by #7) | — |
-| Privilege probe fails | non-zero | Hint naming `--privileged` and the sysbox runtime (same hint as the dockerd timeout). |
-| Invalid `VAULT_DOCKERD_TIMEOUT` | non-zero | States the variable, the bad value and that a positive integer is expected. |
-| dockerd timeout | non-zero | `dockerd failed to start; are you running with --privileged (or the sysbox runtime)?` |
-| Tarball load fails | non-zero | Names the failing file. |
+| Privilege probe fails | 1 | Hint naming `--privileged` and the sysbox runtime (same hint as the dockerd timeout). |
+| Invalid `VAULT_DOCKERD_TIMEOUT` | 1 | `VAULT_DOCKERD_TIMEOUT must be a positive integer, got: '<value>'` |
+| dockerd timeout | 1 | `dockerd failed to start; are you running with --privileged (or the sysbox runtime)?` Dockerd is stopped first. |
+| Tarball load fails | 1 | `failed to load image tarball: <file>`. Dockerd is stopped first. |
 | Signal before compose started | #6 decides and records it here | — |
 
-Exact non-zero values are left to #5 / #6.
+Every Vault-side failure in #5 exits `1`; messages go to stderr. The remaining values are left to #6.
 
 ## Edge cases
 
