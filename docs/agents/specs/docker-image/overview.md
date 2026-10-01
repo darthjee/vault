@@ -43,12 +43,13 @@ These are relied on by more than one sub-issue. Changing one requires updating t
 | `bump-version VERSION=X.Y.Z` | Update `VERSION` and the README line. **Fails fast without `VERSION`.** | [tooling.md](tooling.md#versioning) |
 | `check-version-tag TAG=X.Y.Z` | Check the tag against `VERSION` and the README line. **Fails fast without `TAG`.** | [tooling.md](tooling.md#versioning) |
 
-`build-image`, `test-image`, `update-description` and `release` start as no-op stubs in #4 ([tooling.md → Makefile](tooling.md#makefile)).
+`test-image`, `update-description` and `release` start as no-op stubs in #4; `build-image` is implemented in #5 ([tooling.md → Makefile](tooling.md#makefile)).
 
 | Variable | Purpose |
 |----------|---------|
 | `SHELLCHECK_IMAGE ?= koalaman/shellcheck:v0.11.0` | Lint tool image. |
 | `BATS_IMAGE ?= bats/bats:1.14.0` | Unit test tool image. |
+| `IMAGE ?= darthjee/vault:dev` | Tag applied by `build-image`. |
 | `DOCKER_VERSION` | Passed as `--build-arg DOCKER_VERSION=…`; default comes from the Dockerfile `ARG` (`29.8.2`). |
 
 ### Image paths
@@ -100,7 +101,7 @@ Where the spec and the permanent docs disagree, the spec wins until #10 reconcil
 | Credentials | CircleCI **project env vars** ([`AGENTS.md`](../../../../AGENTS.md) → Release) | A **restricted CircleCI context**, used only by the release jobs ([ci.md](ci.md#credentials)). |
 | dockerd host | Started through `dockerd-entrypoint.sh` with `DOCKER_TLS_CERTDIR=""` ([flow.md](../../flow.md)) | Always passed an explicit `--host=unix:///var/run/docker.sock`, so no TCP listener ([image.md](image.md#security-and-performance)). |
 | Compose exits on its own | Implied `down` on shutdown ([flow.md](../../flow.md)) | No `compose down`; only dockerd is stopped. `down` runs only on the signal path ([image.md](image.md#entrypoint-flow)). |
-| Makefile variables | Targets only ([folder-structure.md](../../folder-structure.md)) | Adds `SHELLCHECK_IMAGE`, `BATS_IMAGE` and the `DOCKER_VERSION` build arg ([tooling.md](tooling.md#makefile)). |
+| Makefile variables | Targets only ([folder-structure.md](../../folder-structure.md)) | Adds `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `IMAGE` and the `DOCKER_VERSION` build arg ([tooling.md](tooling.md#makefile)). |
 | `scripts/ci/` | Listed as `ci/*` without a rule ([folder-structure.md](../../folder-structure.md)) | Holds every CI-only wrapper (`docker login`, buildx/QEMU setup, fetching `docker_hub.sh`) ([tooling.md](tooling.md#scripts-vs-makefile)). |
 
 ## Alternatives considered
