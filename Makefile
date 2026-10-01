@@ -1,5 +1,6 @@
 SHELLCHECK_IMAGE ?= koalaman/shellcheck:v0.11.0
 BATS_IMAGE ?= bats/bats:1.14.0
+IMAGE ?= darthjee/vault:dev
 
 export SHELLCHECK_IMAGE BATS_IMAGE
 
@@ -18,7 +19,7 @@ check-version-tag:
 	$(if $(TAG),scripts/check_tag_version.sh $(TAG),$(error TAG is required, e.g. make check-version-tag TAG=X.Y.Z))
 
 build-image:
-	@echo "build-image: not implemented yet (see issue #5)"
+	docker build $(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) -t $(IMAGE) .
 
 test-image:
 	@echo "test-image: not implemented yet (see issue #7)"
