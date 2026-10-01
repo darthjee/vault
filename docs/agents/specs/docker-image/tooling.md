@@ -12,8 +12,8 @@ See [contributing.md](../../contributing.md) for [Bash style](../../contributing
 |------|----------|
 | `VERSION` | Single line, initial value `0.1.0`. |
 | README | Carries a `**Current Version:** X.Y.Z` line, kept equal to `VERSION`. |
-| `scripts/bump_version.sh X.Y.Z` | Updates `VERSION` and the README line together. |
-| `scripts/check_tag_version.sh` | Fails unless the tag equals both `VERSION` and the README line. Used by the release pipeline ([ci.md](ci.md#release-pipeline)). |
+| `scripts/bump_version.sh X.Y.Z` | Updates `VERSION` and the README line together. Exposed as `make bump-version VERSION=X.Y.Z`. |
+| `scripts/check_tag_version.sh X.Y.Z` | Takes the tag as an argument. Fails unless the tag equals both `VERSION` and the README line. Exposed as `make check-version-tag TAG=X.Y.Z`; used by the release pipeline ([ci.md](ci.md#release-pipeline)). |
 
 ## Scripts vs Makefile
 
@@ -31,7 +31,9 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 |--------|-----------|-----------|
 | `build-image` | `docker build` the image, passing `--build-arg DOCKER_VERSION` when set. | Non-zero if the build fails. |
 | `lint` | Shellcheck over `source/`, `scripts/` and `test/` in `SHELLCHECK_IMAGE`. | Non-zero on any finding. |
-| `test` | Bats over `test/lib/` in `BATS_IMAGE`. | Non-zero on any failing test. |
+| `test` | Bats over `test/lib/` in `BATS_IMAGE`. | Non-zero on any failing test; 0 with "no tests found" when there are none. |
+| `bump-version VERSION=X.Y.Z` | Runs `scripts/bump_version.sh`. | Non-zero immediately when `VERSION` is missing. |
+| `check-version-tag TAG=X.Y.Z` | Runs `scripts/check_tag_version.sh`. | Non-zero immediately when `TAG` is missing, or on a mismatch. |
 | `test-image` | [Smoke test](#smoke-test). | Non-zero on any failed check; cleanup still runs. |
 | `release TAG=x` | Multi-arch build and push ([ci.md](ci.md#release-pipeline)). | Non-zero immediately when `TAG` is missing, before any build. |
 | `update-description` | Push `DOCKERHUB_DESCRIPTION.md` ([ci.md](ci.md#docker-hub-description)). | Non-zero if the push fails. |
@@ -42,13 +44,21 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 | `BATS_IMAGE` | `?= bats/bats:1.14.0` |
 | `DOCKER_VERSION` | Unset; the Dockerfile `ARG` default (`29.8.2`) applies ([image.md](image.md#base-image)). |
 
+**Stubs:** #4 adds `build-image`, `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#5, #7, #9 and #9) and exits 0. `release` still fails fast without `TAG`, so the contract holds from the start.
+
 ## Lint and unit test tool images
 
 - The tool images are used directly, with the repo mounted **read-only**. No custom test image is built.
 - Both are pinned by tag; bump them by changing the Makefile defaults.
-- **`make lint`:** shellcheck over `source/`, `scripts/` (including `scripts/ci/`) and `test/`.
+- **`make lint`:** shellcheck over `*.sh` and `*.bats` files in `source/`, `scripts/` (including `scripts/ci/`) and `test/`.
+  - Missing folders are skipped.
+  - Files are collected on the host, because the shellcheck image has no shell.
+  - The repo is mounted read-only at `/mnt`.
 - **`make test`:** bats over `test/lib/`, one file per library (`source/lib/compose.sh` → `test/lib/compose.bats`), with `docker` / `dockerd` stubbed (see [contributing.md → Refactoring Guidelines](../../contributing.md#refactoring-guidelines)).
-- **Helper libraries:** `bats-support`, `bats-assert` and `bats-file` come from the bats image. **To be verified** by #4, which records the load path here. Fallback: vendor them under `test/helpers/`.
+  - The repo is mounted read-only at `/code`.
+  - When `test/lib/` is missing or has no `.bats` files, it prints "no tests found" and exits 0.
+- **Version scripts:** `scripts/bump_version.sh` and `scripts/check_tag_version.sh` are covered by `make lint` only; they have no bats tests.
+- **Helper libraries:** `bats-support`, `bats-assert` and `bats-file` ship in `bats/bats:1.14.0` under `/usr/lib/bats` (`BATS_LIB_PATH`). Load them with `bats_load_library <name>`. Nothing is vendored.
 - **Known gap:** unit tests run on the bats image's bash, not on the Alpine bash inside the Vault image. The smoke test covers the real runtime.
 
 ## Smoke test

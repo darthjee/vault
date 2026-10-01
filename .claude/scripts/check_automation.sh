@@ -3,4 +3,4 @@ set -euo pipefail
 set -x
 
 make lint
-if command -v circleci >/dev/null; then circleci config validate; fi
+if [ -f .circleci/config.yml ] && command -v circleci >/dev/null; then circleci config validate; fi
