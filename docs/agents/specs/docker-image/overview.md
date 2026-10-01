@@ -40,6 +40,10 @@ These are relied on by more than one sub-issue. Changing one requires updating t
 | `test-image` | Smoke test: build, run `--privileged` with the fixture, check, clean up. | [tooling.md](tooling.md#smoke-test) |
 | `release TAG=x` | Multi-arch build and push of `darthjee/vault:x` and `:latest`. **Fails fast without `TAG`.** | [ci.md](ci.md#release-pipeline) |
 | `update-description` | Push `DOCKERHUB_DESCRIPTION.md` to Docker Hub. | [ci.md](ci.md#docker-hub-description) |
+| `bump-version VERSION=X.Y.Z` | Update `VERSION` and the README line. **Fails fast without `VERSION`.** | [tooling.md](tooling.md#versioning) |
+| `check-version-tag TAG=X.Y.Z` | Check the tag against `VERSION` and the README line. **Fails fast without `TAG`.** | [tooling.md](tooling.md#versioning) |
+
+`build-image`, `test-image`, `update-description` and `release` start as no-op stubs in #4 ([tooling.md → Makefile](tooling.md#makefile)).
 
 | Variable | Purpose |
 |----------|---------|

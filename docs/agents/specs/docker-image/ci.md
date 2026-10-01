@@ -31,7 +31,7 @@ Runs only on `X.Y.Z` tags (`branches: ignore: /.*/`), implemented by #9.
 
 | Job | Depends on | Does |
 |-----|------------|------|
-| `check-version-tag` | — | `scripts/check_tag_version.sh`: the tag equals `VERSION` and the README `**Current Version:**` line ([tooling.md → Versioning](tooling.md#versioning)). |
+| `check-version-tag` | — | `make check-version-tag TAG=$CIRCLE_TAG`: the tag equals `VERSION` and the README `**Current Version:**` line ([tooling.md → Versioning](tooling.md#versioning)). |
 | `build-and-test` | — | The same checks as the [PR pipeline](#pr-pipeline). |
 | `build-and-release` | `check-version-tag`, `build-and-test` | `make release TAG=$CIRCLE_TAG`: `docker buildx` with QEMU on a **single machine** for `linux/amd64` and `linux/arm64`; pushes `darthjee/vault:X.Y.Z` and `darthjee/vault:latest`. |
 | `update-description` | `build-and-release` | `make update-description` ([Docker Hub description](#docker-hub-description)). |
