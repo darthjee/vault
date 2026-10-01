@@ -29,6 +29,7 @@ printf '%s\n' "$new_version" > "$VERSION_FILE"
 tmp_file="$(mktemp "${README_FILE}.XXXXXX")"
 trap 'rm -f "$tmp_file"' EXIT
 sed "s/^\*\*Current Version:\*\* .*/**Current Version:** ${new_version}/" "$README_FILE" > "$tmp_file"
-mv "$tmp_file" "$README_FILE"
+# Copy contents back (instead of mv) so README.md keeps its permissions.
+cat "$tmp_file" > "$README_FILE"
 
 echo "Version bumped to $new_version"
