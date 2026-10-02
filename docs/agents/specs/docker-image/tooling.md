@@ -34,7 +34,7 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 | `test` | Bats over `test/lib/` in `BATS_IMAGE`. | Non-zero on any failing test; 0 with "no tests found" when there are none. |
 | `bump-version VERSION=X.Y.Z` | Runs `scripts/bump_version.sh`. | Non-zero immediately when `VERSION` is missing. |
 | `check-version-tag TAG=X.Y.Z` | Runs `scripts/check_tag_version.sh`. | Non-zero immediately when `TAG` is missing, or on a mismatch. |
-| `test-image` | [Smoke test](#smoke-test). | Non-zero on any failed check; cleanup still runs. |
+| `test-image` | Depends on `build-image`, then runs the [smoke test](#smoke-test) (`scripts/test_image.sh`). | Non-zero on any failed check; cleanup still runs. |
 | `release TAG=x` | Multi-arch build and push ([ci.md](ci.md#release-pipeline)). | Non-zero immediately when `TAG` is missing, before any build. |
 | `update-description` | Push `DOCKERHUB_DESCRIPTION.md` ([ci.md](ci.md#docker-hub-description)). | Non-zero if the push fails. |
 
@@ -44,8 +44,9 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 | `BATS_IMAGE` | `?= bats/bats:1.14.0` |
 | `IMAGE` | `?= darthjee/vault:dev`; tag applied by `build-image`. |
 | `DOCKER_VERSION` | Unset; the Dockerfile `ARG` default (`29.8.2`) applies ([image.md](image.md#base-image)). |
+| `SMOKE_TIMEOUT` | `?= 120`; seconds `test-image` waits for the published port to answer. |
 
-**Stubs:** #4 adds `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#7, #9 and #9) and exits 0. `build-image` is implemented in #5. `release` still fails fast without `TAG`, so the contract holds from the start.
+**Stubs:** #4 adds `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#7, #9 and #9) and exits 0. `build-image` is implemented in #5. `test-image` is no longer a stub: it is implemented in #7. `release` still fails fast without `TAG`, so the contract holds from the start.
 
 ## Lint and unit test tool images
 
@@ -64,14 +65,26 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 
 ## Smoke test
 
-`make test-image`, implemented by #7. Logic lives in a script under `scripts/` (Make is only the entry point); the fixture compose stack lives under `test/`.
+`make test-image`, implemented by #7. Make is only the entry point; the logic lives in `scripts/test_image.sh`.
 
-1. Build the image.
+1. Build the image (`test-image` depends on `build-image`).
 2. Run Vault `--privileged` with the fixture compose file and a published port.
 3. `curl` the published port; it must succeed.
 4. Assert that nothing listens on port 2375 inside the container ([image.md → Dockerd startup](image.md#dockerd-startup)).
 5. `docker stop` the container; it must exit cleanly with code 0.
 6. Cleanup (container, volumes, network) **always** runs, also when a check fails.
+
+| Item | Decision |
+|------|----------|
+| Fixture | `test/fixture/docker-compose.yml`: one service, `nginx:1.29-alpine` (pinned by tag), `ports: ["80:80"]`, no build context, no volumes. The `test/fixture` directory is mounted read-only at `/vault`; it has no `images/` folder. |
+| Script | `scripts/test_image.sh`, called only via `make test-image`. Inputs: `IMAGE` (required) and `SMOKE_TIMEOUT` (positive integer, seconds). |
+| Published port | Random host port bound on `127.0.0.1`, read back with `docker port`. |
+| Port check | `curl` polled every 2s until it succeeds or `SMOKE_TIMEOUT` expires. |
+| No TCP listener | `docker exec … netstat -ltn` inside the container; fails if anything listens on 2375. |
+| Clean stop | `docker stop -t 30`, then the exit code read with `docker inspect` must be 0. |
+| Cleanup | `docker rm -fv` in an `EXIT` trap, so it runs on success and on failure. |
+| Failure output | Print which check failed, followed by the container logs. |
+| Exit code | 0 only when every check passed; non-zero otherwise. |
 
 ## Testing strategy
 

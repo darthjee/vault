@@ -1,8 +1,9 @@
 SHELLCHECK_IMAGE ?= koalaman/shellcheck:v0.11.0
 BATS_IMAGE ?= bats/bats:1.14.0
 IMAGE ?= darthjee/vault:dev
+SMOKE_TIMEOUT ?= 120
 
-export SHELLCHECK_IMAGE BATS_IMAGE
+export SHELLCHECK_IMAGE BATS_IMAGE IMAGE SMOKE_TIMEOUT
 
 .PHONY: lint test bump-version check-version-tag build-image test-image update-description release
 
@@ -21,8 +22,8 @@ check-version-tag:
 build-image:
 	docker build $(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) -t $(IMAGE) .
 
-test-image:
-	@echo "test-image: not implemented yet (see issue #7)"
+test-image: build-image
+	scripts/test_image.sh
 
 update-description:
 	@echo "update-description: not implemented yet (see issue #9)"
