@@ -1,0 +1,22 @@
+version: 2.1
+
+jobs:
+  build-and-test:
+    machine:
+      image: ubuntu-2404:current
+    steps:
+      - checkout
+      - run:
+          name: Lint shell scripts
+          command: make lint
+      - run:
+          name: Run unit tests
+          command: make test
+      - run:
+          name: Build image and run smoke test
+          command: make test-image
+
+workflows:
+  build-and-test:
+    jobs:
+      - build-and-test
