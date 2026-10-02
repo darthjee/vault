@@ -1,6 +1,6 @@
 # vault
 
-**Current Version:** 0.1.0
+**Current Version:** 0.0.1
 
 Vault is a Docker-in-Docker image that runs a `docker compose` stack inside a
 single container. An application and its dependencies (database, cache, ...)
