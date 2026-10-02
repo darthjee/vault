@@ -1,6 +1,6 @@
 # Docker Image Spec: Tooling
 
-Part of the [Docker image spec](overview.md). Implemented by #4 (versioning, Makefile, lint, unit tests) and #7 (smoke test).
+Part of the [Docker image spec](overview.md). Implemented by #4 (versioning, Makefile, lint, unit tests), #7 (smoke test) and #9 (release targets).
 
 ## Baseline
 
@@ -37,6 +37,7 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 | `test-image` | Depends on `build-image`, then runs the [smoke test](#smoke-test) (`scripts/test_image.sh`). | Non-zero on any failed check; cleanup still runs. |
 | `release TAG=x` | Multi-arch build and push ([ci.md](ci.md#release-pipeline)). | Non-zero immediately when `TAG` is missing, before any build. |
 | `update-description` | Push `DOCKERHUB_DESCRIPTION.md` ([ci.md](ci.md#docker-hub-description)). | Non-zero if the push fails. |
+| `ci-release-setup` | **CI-only.** QEMU/binfmt plus a buildx builder, then `docker login` with the `docker-hub` context credentials (`scripts/ci/*.sh`). Run by `build-and-release` before `release` ([ci.md](ci.md#release-pipeline)). | Non-zero if setup or login fails. |
 
 | Variable | Default |
 |----------|---------|
@@ -46,7 +47,7 @@ Target names and behaviour are a shared contract ([overview.md](overview.md#make
 | `DOCKER_VERSION` | Unset; the Dockerfile `ARG` default (`29.8.2`) applies ([image.md](image.md#base-image)). |
 | `SMOKE_TIMEOUT` | `?= 120`; seconds `test-image` waits for the published port to answer. |
 
-**Stubs:** #4 adds `test-image`, `update-description` and `release` as no-op stubs. Each prints a notice naming the sub-issue that implements it (#7, #9 and #9) and exits 0. `build-image` is implemented in #5. `test-image` is no longer a stub: it is implemented in #7. `release` still fails fast without `TAG`, so the contract holds from the start.
+**Stubs:** #4 added `test-image`, `update-description` and `release` as no-op stubs. None remain: `build-image` is implemented in #5, `test-image` in #7, and `release` and `update-description` in #9. `release` has failed fast without `TAG` from the start, so the contract always held.
 
 ## Lint and unit test tool images
 

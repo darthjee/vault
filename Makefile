@@ -2,10 +2,12 @@ SHELLCHECK_IMAGE ?= koalaman/shellcheck:v0.11.0
 BATS_IMAGE ?= bats/bats:1.14.0
 IMAGE ?= darthjee/vault:dev
 SMOKE_TIMEOUT ?= 120
+RELEASE_IMAGE ?= darthjee/vault
+PUSH ?= true
 
-export SHELLCHECK_IMAGE BATS_IMAGE IMAGE SMOKE_TIMEOUT
+export SHELLCHECK_IMAGE BATS_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test bump-version check-version-tag build-image test-image update-description release
+.PHONY: lint test bump-version check-version-tag build-image test-image update-description release ci-release-setup
 
 lint:
 	scripts/lint.sh
@@ -26,7 +28,11 @@ test-image: build-image
 	scripts/test_image.sh
 
 update-description:
-	@echo "update-description: not implemented yet (see issue #9)"
+	scripts/ci/update_description.sh
 
 release:
-	$(if $(TAG),@echo "release $(TAG): not implemented yet (see issue #9)",$(error TAG is required, e.g. make release TAG=X.Y.Z))
+	$(if $(TAG),scripts/release.sh $(TAG),$(error TAG is required, e.g. make release TAG=X.Y.Z))
+
+ci-release-setup:
+	scripts/ci/setup_buildx.sh
+	scripts/ci/docker_login.sh

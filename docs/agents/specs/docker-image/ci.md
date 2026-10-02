@@ -40,7 +40,7 @@ Runs only on `X.Y.Z` tags (`branches: ignore: /.*/`), implemented by #9.
 | `build-and-release` | `check-version-tag`, `build-and-test` | `make release TAG=$CIRCLE_TAG`: `docker buildx` with QEMU on a **single machine** for `linux/amd64` and `linux/arm64`; pushes `darthjee/vault:X.Y.Z` and `darthjee/vault:latest`. |
 | `update-description` | `build-and-release` | `make update-description` ([Docker Hub description](#docker-hub-description)). |
 
-- buildx / QEMU setup and `docker login` are CI-only steps in `scripts/ci/*.sh`.
+- buildx / QEMU setup and `docker login` are CI-only steps in `scripts/ci/*.sh`, exposed as the CI-only target `make ci-release-setup` ([tooling.md → Makefile](tooling.md#makefile)).
 - **No tag is pushed during epic #2.** The first release happens after the epic is done.
 
 ## Credentials
@@ -52,12 +52,20 @@ Runs only on `X.Y.Z` tags (`branches: ignore: /.*/`), implemented by #9.
 | Variables | `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD` |
 | Storage | A **restricted CircleCI context**, not project env vars. |
 | Used by | `build-and-release` and `update-description` only. PR jobs never receive them. |
-| Context name | Chosen when the context is created; #9 records it here. |
+| Context name | `docker-hub` (restricted). Attached only to `build-and-release` and `update-description`. |
 
 ## Docker Hub description
 
 - `DOCKERHUB_DESCRIPTION.md` is the Docker Hub page: what Vault is, how to run it (Sysbox recommended, `--privileged` fallback), the Vault env vars, and a pointer to the README Security section. Exact prose is left to #9.
-- `make update-description` calls a `scripts/ci/` wrapper that fetches `darthjee/scripts`' `docker_hub.sh` at a **pinned tag or commit** and runs it. Nothing is vendored into this repo.
+- `make update-description` calls `scripts/ci/update_description.sh`, which fetches `docker_hub.sh`, checks its sha256, and runs it. Nothing is vendored into this repo.
+- `docker_hub.sh` ships in the `darthjee/scripts` image but lives in the **`darthjee/docker`** repo, not `darthjee/scripts`.
+
+| Item | Value |
+|------|-------|
+| Source | `https://raw.githubusercontent.com/darthjee/docker/91b11fb949bb0f71670e390fdc97df831c46af70/scripts/0.9.0/home/sbin/docker_hub.sh` |
+| Pinned commit | `91b11fb949bb0f71670e390fdc97df831c46af70` (`darthjee/docker`) |
+| sha256 | `cd0cb716f77443a2a806a85599adf270e4ab3e60a74411bafe023f6b3fd1c66a` |
+| On mismatch | The wrapper fails before running the script. Bumping the pin means updating both the commit and the sha256. |
 
 ## Manual prerequisites
 
@@ -67,4 +75,4 @@ Done by a maintainer, outside any PR, before the first release:
 |--------------|-----------|
 | Docker Hub repository `darthjee/vault` | `build-and-release`, `update-description` |
 | CircleCI project for this repo | #8 |
-| Restricted CircleCI context holding the [credentials](#credentials) | #9 |
+| Restricted CircleCI context `docker-hub` holding the [credentials](#credentials) | #9 |
