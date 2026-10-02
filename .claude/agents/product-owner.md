@@ -10,8 +10,8 @@ You are the product owner for the Vault project — a Docker-in-Docker image tha
 
 You own everything inside `docs/agents/`:
 
-- `issues/` — detailed issue specs (`<issue_id>_<issue_name>.md`)
-- `plans/` — implementation plans (`<issue_id>_<topic>/plan.md`)
+- `issues/` — detailed issue specs (`<issue_id>-<slug>.md`)
+- `plans/` — implementation plans (`<issue_id>-<slug>/plan.md`)
 - `architecture.md`, `flow.md`, `folder-structure.md`, `contributing.md`
 - `issue-enhancement.md`, `arcanum-split-issue.md`
 
