@@ -1,9 +1,13 @@
 version: 2.1
 
-jobs:
-  build-and-test:
+executors:
+  machine:
     machine:
       image: ubuntu-2404:current
+
+jobs:
+  build-and-test:
+    executor: machine
     steps:
       - checkout
       - run:
@@ -16,7 +20,56 @@ jobs:
           name: Build image and run smoke test
           command: make test-image
 
+  check-version-tag:
+    executor: machine
+    steps:
+      - checkout
+      - run:
+          name: Check tag matches VERSION and README
+          command: make check-version-tag TAG="$CIRCLE_TAG"
+
+  build-and-release:
+    executor: machine
+    steps:
+      - checkout
+      - run:
+          name: Set up buildx and log in to Docker Hub
+          command: make ci-release-setup
+      - run:
+          name: Build and push multi-arch image
+          command: make release TAG="$CIRCLE_TAG"
+
+  update-description:
+    executor: machine
+    steps:
+      - checkout
+      - run:
+          name: Push Docker Hub description
+          command: make update-description
+
 workflows:
   build-and-test:
     jobs:
       - build-and-test
+
+  release:
+    jobs:
+      - check-version-tag:
+          filters: &release-filters
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+            branches:
+              ignore: /.*/
+      - build-and-test:
+          filters: *release-filters
+      - build-and-release:
+          context: docker-hub
+          requires:
+            - check-version-tag
+            - build-and-test
+          filters: *release-filters
+      - update-description:
+          context: docker-hub
+          requires:
+            - build-and-release
+          filters: *release-filters
