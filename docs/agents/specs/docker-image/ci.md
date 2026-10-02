@@ -9,8 +9,8 @@ See [`AGENTS.md` → Release (CircleCI)](../../../../AGENTS.md#release-circleci)
 ## CircleCI principles
 
 - The YAML only sets up executors, contexts and filters, and **calls make targets**. Any logic lives in `scripts/*.sh` or `scripts/ci/*.sh` ([tooling.md → Scripts vs Makefile](tooling.md#scripts-vs-makefile)).
-- Jobs that run Docker use `machine: true`.
-- The exact YAML (job names beyond those below, executors, caching) is left to #8 / #9.
+- Jobs that run Docker use a named machine image: `machine: image: ubuntu-2404:current`. The `machine: true` form is deprecated and is not used.
+- The PR-side job name (`build-and-test`) and executor are decided by #8 ([PR pipeline](#pr-pipeline)). The remaining YAML (release job details, caching) is left to #9.
 
 ## PR pipeline
 
@@ -23,7 +23,11 @@ Runs on every branch and PR (#8).
 | Image build | `make build-image` |
 | Smoke test | `make test-image` (`--privileged`, amd64 only) |
 
-No credentials are available to these jobs.
+#8 implements these checks in `.circleci/config.yml` as a **single `build-and-test` job**, running them in table order: `make lint` → `make test` → `make test-image` (`test-image` depends on `build-image`, so the image build happens there). One workflow runs this job on every branch and PR, with no filters.
+
+The release pipeline's `build-and-test` job (#9) is this same job, reused unchanged.
+
+No credentials are available to these jobs: no `context:` is attached.
 
 ## Release pipeline
 
