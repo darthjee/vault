@@ -1,5 +1,8 @@
 # vault
 
+[![Build Status](https://circleci.com/gh/darthjee/vault.svg?style=shield)](https://circleci.com/gh/darthjee/vault)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/02d1416cf9bf43478c2b66d09361158a)](https://app.codacy.com/gh/darthjee/vault/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+
 **Current Version:** 0.0.1
 
 Vault is a Docker-in-Docker image that runs a `docker compose` stack inside a
