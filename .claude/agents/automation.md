@@ -20,7 +20,7 @@ Do NOT touch `Dockerfile`, `source/`, `test/`, `docs/agents/` or root-level file
 
 ## Stack
 
-- CircleCI (`machine: true` executors for Docker jobs)
+- CircleCI (`machine: image: ubuntu-2404:current` executors for Docker jobs)
 - GNU Make, Bash (`set -euo pipefail`), `shellcheck`
 - `docker buildx` for `linux/amd64` + `linux/arm64`
 - Docker Hub (`darthjee/vault`), `darthjee/scripts` image for the description update

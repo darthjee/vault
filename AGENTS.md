@@ -66,9 +66,10 @@ Modelled after the `navi` project:
 - `build-and-release`: `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
 - `update-description`: pushes `DOCKERHUB_DESCRIPTION.md` via `darthjee/scripts`' `docker_hub.sh`.
-- On PRs / branches: build the image, run `shellcheck`, and a smoke test (start Vault
-  `--privileged` with a tiny compose file, `curl` the exposed port, stop it). Docker jobs use
-  `machine: true`.
+- On PRs / branches: the `build-and-test` job runs `make lint`, `make test` and
+  `make test-image` (build the image, then start Vault `--privileged` with a tiny compose file,
+  `curl` the exposed port, stop it). Docker jobs use the `machine: image: ubuntu-2404:current`
+  executor (the bare `machine: true` form is deprecated).
 - Credentials: `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD` (CircleCI project env vars).
 - Makefile targets: `build-image`, `lint` (shellcheck), `test` (bats), `test-image`, `release TAG=x` (fails fast without `TAG`),
   `update-description`.
