@@ -117,6 +117,9 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Contributing](docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](docs/agents/issues/) | Detailed specs for open issues. |
+| [Specs](docs/agents/specs/) | CLI spec for epic #20 (`cli-*.md`): shared contracts, commands, config, install, tooling and CI. |
+
+During epic #20, `docs/agents/specs/*.md` overrides these docs where they conflict.
 
 ### Issues (`docs/agents/issues/`)
 
@@ -144,7 +147,8 @@ Specialist sub-agents live in [`.claude/agents/`](.claude/agents/):
 
 | Agent | Scope |
 |-------|-------|
-| `architect` | Coordinator: root-level files, `.github/`, `.claude/`, cross-cutting decisions; fallback for `docs/agents/` |
-| `product-owner` | `docs/agents/` — issue specs, plans, project documentation |
-| `dev` | `Dockerfile`, `source/`, `test/` — the image, the entrypoint and its tests |
-| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md` — build, release, publishing |
+| `architect` | Coordinator: root-level files (except `install.sh`), `.github/`, `.claude/`, cross-cutting decisions; fallback for `docs/agents/` |
+| `product-owner` | `docs/agents/` (incl. `specs/`) — issue specs, plans, project documentation |
+| `dev` | `Dockerfile`, `source/` (incl. `source/bin/install.sh`), `test/lib/`, `test/fixture/` and the image tests — the image, the entrypoint, the in-image install entry and their tests |
+| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/` — build, release, publishing |
+| `cli` | `cli/` (`bin/vault`, `lib/*.sh`, `completion/*`), root `install.sh`, `test/cli/`, `test/install/` — the `vault` CLI and its installer |
