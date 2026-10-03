@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# vault — run a Vault image (docker compose in Docker) on the host.
+# Usage: vault <command> [options] [dir] [args]
+# This is the only script that reads the environment and .vaultrc.
+set -euo pipefail
+
+VAULT_VERSION="0.0.1"
+
+# BEGIN LIBS
+# shellcheck source=SCRIPTDIR/../lib/output.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/output.sh"
+# shellcheck source=SCRIPTDIR/../lib/usage.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/usage.sh"
+# END LIBS
+
+# Dispatches on the first argument.
+# Usage: vault_main [command] [args...]
+vault_main() {
+  if [ "$#" -eq 0 ]; then
+    usage_print >&2
+    return 2
+  fi
+
+  local command="$1"
+  shift
+
+  case "$command" in
+    version) vault_version "$@" ;;
+    help | -h | --help) vault_help "$@" ;;
+    *) vault_unknown_command "$command" ;;
+  esac
+}
+
+# Prints "vault X.Y.Z" to stdout.
+# Usage: vault_version
+vault_version() {
+  printf 'vault %s\n' "$VAULT_VERSION"
+}
+
+# Prints the usage to stdout.
+# Usage: vault_help
+vault_help() {
+  usage_print
+}
+
+# Reports an unknown command and returns 2.
+# Usage: vault_unknown_command <command>
+vault_unknown_command() {
+  output_error "unknown command '$1'"
+  output_hint 'run "vault help"'
+  return 2
+}
+
+vault_main "$@"
