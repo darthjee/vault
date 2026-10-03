@@ -20,6 +20,13 @@ END_MARKER="# END LIBS"
 LIBS=(
   output.sh
   usage.sh
+  docker.sh
+  args.sh
+  naming.sh
+  config.sh
+  guardrails.sh
+  runtime.sh
+  container.sh
 )
 
 fail() {

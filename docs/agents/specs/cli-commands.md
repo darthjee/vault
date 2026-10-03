@@ -13,6 +13,12 @@ vault <command> [options] [dir] [args]
 - `compose`, `run`: option parsing stops at the first argument that is not a CLI option (for
   `run`, after the optional `[dir]`); that argument and everything after it are passed verbatim
   to compose. `--` ends option parsing explicitly.
+- `run` and `[dir]` (decided by #23, open point 1): the first positional argument is `[dir]`
+  only when it names an existing directory; otherwise it is the first compose argument
+  (`vault run config` passes `config` to the entrypoint). To pass an argument that happens to
+  name an existing directory, put `--` before it.
+- `up`, `down`, `logs`, `status` take at most one positional (`[dir]`), and at most one
+  argument after `--`. Any further one fails with `unexpected argument` (exit 2).
 - `vault` with no command prints the usage to stderr and exits 2.
 
 ## Commands
@@ -35,19 +41,21 @@ vault <command> [options] [dir] [args]
 
 ### Container arguments (`up`, `run`)
 
-In this order:
+Fixed by #23 (`container_build_args` in `cli/lib/container.sh` fills `CONTAINER_ARGS`, which
+begins with the `run` subcommand). In this order:
 
-1. The runtime: `--runtime=sysbox-runc` or `--privileged` ([runtime selection](#runtime-selection)).
-2. `--stop-timeout <stop-timeout>`.
-3. `-v <dir>:/vault`, unless `--image` was given without an explicit `[dir]`.
-4. `-v vault-<name>-data:/var/lib/docker` (always).
-5. Each extra `-v SRC:DST`, in order.
-6. Each `-p HOST:CONTAINER`, in order (default `3000:80`).
-7. `--env-file <dir>/.vault.env` when it exists, then each `--env-file`, then each `-e KEY=VALUE`.
-8. `up` only: `--name vault-<name>` and `-d` (unless `-f`).
-9. The image, then (`run` only) the compose args.
+1. `run` (the `docker` subcommand).
+2. The runtime: `--privileged` or `--runtime=sysbox-runc` ([runtime selection](#runtime-selection)).
+3. `--stop-timeout <stop-timeout>`.
+4. `-v <absolute dir>:/vault`, unless `--image` was given without an explicit `[dir]`.
+5. `-v vault-<name>-data:/var/lib/docker` (always).
+6. Each extra `-v`, in order.
+7. Each `-p`, in order (default `3000:80`).
+8. Each `--env-file` (`<dir>/.vault.env` first, when it exists), then each `-e`.
+9. `up`: `--name vault-<name>`, then `-d` unless `-f`. `run`: `--rm` in the same slot.
+10. The image, then (`run` only) the compose arguments.
 
-The exact argument order may be refined by #23 / #24, but tests assert the full list.
+Tests assert the full list. `-i` / `-t` are not added yet (open point 3, #24).
 
 ## Options
 
@@ -60,11 +68,15 @@ The exact argument order may be refined by #23 / #24, but tests assert the full 
 | `-v`, `--volume <SRC:DST>` | `up`, `run` | none | Extra mount; repeatable. |
 | `-e`, `--env <KEY=VALUE>` | `up`, `run` | none | Env var; repeatable. |
 | `--env-file <file>` | `up`, `run` | none | Env file; repeatable. |
-| `--stop-timeout <seconds>` | `up`, `run`, `down` | `60` | Positive integer. |
+| `--stop-timeout <seconds>` | `up`, `run`, `down` | `60` | Positive integer: digits only, no leading zero (`007` is rejected). |
 | `-f`, `--attach` | `up` | off | Run in the foreground. |
 | `-f`, `--follow` | `logs` | off | Follow the logs. |
 
 - Every option except `-f` can also come from `.vaultrc` ([cli-config.md](cli-config.md)).
+- An empty value for `--image`, `-p`, `-v` or `--env-file` (e.g. `--image=`) is a bad option
+  value (exit 2). `-e` values are not validated.
+- Relative `-v` sources and `--env-file` paths given as flags are passed to docker as given
+  (only `.vaultrc` entries are resolved, see [cli-config.md](cli-config.md)).
 - Precedence: flags > `.vaultrc` > built-in defaults. For the repeatable `-p`, `-v` and `-e`,
   any flag replaces every `.vaultrc` entry of that key.
 - Env vars the user may want to set on the Vault container: `COMPOSE_UP_ARGS`,
@@ -111,6 +123,11 @@ Applies to `up` and `run` only.
   security options together. A failing `docker info` means the daemon is unreachable.
 - **Pre-checks, in order:** `docker` on `PATH` (every command except `help` and `version`), then
   for `up`/`run`: `docker info` (daemon, rootless, runtimes), then the guardrails.
+- **Resolution order** (`vault_resolve` in `cli/bin/vault`, settled by #23): parse options,
+  read `.vaultrc`, merge (precedence), instance naming, `docker` on `PATH`; then, for `up` /
+  `run` only: `docker info` (daemon, rootless, runtime selection), guardrails, `.vault.env`
+  placement, and the container argument builder.
+- A non-existent `[dir]` is kept as given by #23; the `directory not found` check is #24's.
 
 ## Privilege model
 
@@ -127,9 +144,11 @@ Later sub-issues must not weaken any of these rules.
 - **Guardrails** (usage errors, exit 2, checked on flags and `.vaultrc` entries alike):
   - a `-v` whose source is the host's Docker socket is refused: a source whose last path
     component is `docker.sock` (e.g. `/var/run/docker.sock`, `/run/docker.sock`,
-    `~/.docker/run/docker.sock`), or the path of a `unix://` `DOCKER_HOST`;
+    `~/.docker/run/docker.sock`), or the path of a `unix://` `DOCKER_HOST`. A `-v` with no `:`
+    is checked too, its whole value being the source. Symlinks to the socket are not detected;
   - a `-p` whose container side is 2375 or 2376 is refused, in every form (`HOST:CONTAINER`,
     `IP:HOST:CONTAINER`, `CONTAINER`, with `/tcp` or `/udp`, or a range that includes them).
+    The message names the daemon port hit (2375 or 2376).
 - **Install entry:** runs with `--user "$(id -u):$(id -g)"`, with no root, no `--privileged` and
   no `dockerd` ([cli-install.md](cli-install.md)).
 - **The image's own needs are unchanged:** Sysbox or `--privileged`, and the inner Docker socket
@@ -193,18 +212,24 @@ The `vault: ` prefix is omitted; "+" marks a hint line. Tests assert this wordin
 | bad name | stderr | `error: cannot derive an instance name from '<base>'` + `pass --name <name>` | 2 |
 | unknown command | stderr | `error: unknown command '<command>'` + `run "vault help"` | 2 |
 | unknown option | stderr | `error: unknown option '<option>'` + `run "vault help"` | 2 |
+| unexpected argument | stderr | `error: unexpected argument '<arg>'` + `run "vault help"` | 2 |
 | missing option value | stderr | `error: <option> requires a value` | 2 |
 | bad option value | stderr | `error: invalid value for <option>: '<value>'` | 2 |
 | `.vaultrc` unknown key | stderr | `warning: .vaultrc:<line>: unknown key '<key>'` | — |
 | `.vaultrc` malformed | stderr | `error: .vaultrc:<line>: expected key=value` | 1 |
 | `.vaultrc` bad value | stderr | `error: .vaultrc:<line>: invalid value for <key>: '<value>'` | 1 |
 | docker.sock guardrail | stderr | `error: refusing to mount the Docker socket (<src>)` | 2 |
-| port 2375/2376 guardrail | stderr | `error: refusing to publish the Docker daemon port <port>` | 2 |
+| port 2375/2376 guardrail | stderr | `error: refusing to publish the Docker daemon port <port>` (`<port>` is 2375 or 2376) | 2 |
 | install dir not writable | stderr | `error: <dir> is not writable` | 1 |
 | install dir not in PATH | stderr | `warning: <dir> is not in PATH; add: export PATH="<dir>:$PATH"` | — |
 
 - "No compose file" means none of `compose.yaml`, `compose.yml`, `docker-compose.yaml`,
   `docker-compose.yml` exists in `<dir>`. It is checked only when `<dir>` is mounted.
+- "Unexpected argument": a second positional for `up`, `down`, `logs`, `status`, or more than
+  one argument after `--` for those commands.
+- "Bad option value" also covers an empty value (`--image=`, `-p ''`, …) and a value given to a
+  value-less flag (`--attach=x` → `invalid value for --attach: 'x'`). An unknown `--opt=value`
+  reports only `--opt` (`unknown option '--opt'`).
 - `<value>` in "bad value" messages is never an env value: `-e` / `env=` values are passed to
   docker as given (`KEY=VALUE` or `KEY`), not validated, and never echoed.
 - Install messages: [cli-install.md → Messages](cli-install.md#messages).
