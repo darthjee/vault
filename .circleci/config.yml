@@ -17,6 +17,9 @@ jobs:
           name: Run unit tests
           command: make test
       - run:
+          name: Build CLI bundle
+          command: make bundle-cli
+      - run:
           name: Build image and run smoke test
           command: make test-image
 
@@ -25,7 +28,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Check tag matches VERSION and README
+          name: Check tag matches VERSION, README and VAULT_VERSION lines
           command: make check-version-tag TAG="$CIRCLE_TAG"
 
   build-and-release:
