@@ -12,7 +12,9 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 | `.vault.env` | `[dir]`, else `$PWD` | Env file for the Vault container. Independent of the precedence chain. |
 
 - Only `cli/bin/vault` reads `.vaultrc` and the environment; libraries receive values as
-  arguments.
+  arguments. The `.vaultrc` parser (`cli/lib/config.sh`) reads its lines from **stdin**;
+  `bin/vault` feeds it with `< "<dir>/.vaultrc"`, only when the file exists. The libraries
+  open no file and read no environment variable (`PWD`, `DOCKER_HOST` are passed in).
 - The CLI reads no environment variable of its own in this epic. In particular, an exported
   `VAULT_VERSION` does not change the CLI's version or default image (it only affects
   `install.sh`).

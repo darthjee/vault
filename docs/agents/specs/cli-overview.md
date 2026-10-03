@@ -65,7 +65,7 @@ Spec for epic #20 (Vault CLI). Written by #21.
 | Path | Contents |
 |------|----------|
 | `cli/bin/vault` | CLI main: the only CLI file that runs logic and reads the environment and `.vaultrc`. Holds the `VAULT_VERSION="X.Y.Z"` line and the `# BEGIN LIBS` … `# END LIBS` block. |
-| `cli/lib/*.sh` | CLI libraries (functions only, `# shellcheck shell=bash` instead of a shebang). #22 ships `output.sh` (`output_error`, `output_warning`, `output_hint`) and `usage.sh` (`usage_print`); #23 may add more. |
+| `cli/lib/*.sh` | CLI libraries (functions only, `# shellcheck shell=bash` instead of a shebang). #22 ships `output.sh` (`output_error`, `output_warning`, `output_hint`) and `usage.sh` (`usage_print`); #23 adds `docker.sh`, `args.sh`, `naming.sh`, `config.sh`, `guardrails.sh`, `runtime.sh` and `container.sh`. Bundle order (`scripts/bundle_cli.sh` → `LIBS`): `output.sh`, `usage.sh`, `docker.sh`, `args.sh`, `naming.sh`, `config.sh`, `guardrails.sh`, `runtime.sh`, `container.sh`; a library only calls functions from libraries earlier in the list, or from `bin/vault`. |
 | `cli/completion/vault.bash` | bash completion. |
 | `cli/completion/_vault` | zsh completion. |
 | `install.sh` | `curl \| bash` installer at the repo root; also a release asset. |
@@ -145,7 +145,7 @@ blocks #21.
 
 | # | Open point | Proposed default | Settled by |
 |---|------------|------------------|------------|
-| 1 | How `vault run` tells `[dir]` apart from the first compose argument (`vault run config`). | The first positional is `[dir]` only when it names an existing directory; `--` forces the end of CLI options. | #23 |
+| 1 | How `vault run` tells `[dir]` apart from the first compose argument (`vault run config`). | **Settled:** the first positional is `[dir]` only when it names an existing directory; otherwise it is the first compose argument. `--` ends CLI options explicitly. | #23 (settled) |
 | 2 | Whether `vault run` may start while `vault-<name>` is running (both would share `vault-<name>-data`). | Refuse with an error and exit 1. | #24 |
 | 3 | Whether `vault run` adds `-i` / `-t` when attached to a terminal. | `-t` when stdout is a TTY, `-i` when stdin is a TTY. | #24 |
 | 4 | Exact `status` layout (fields are fixed). | The draft in [cli-commands.md → status](cli-commands.md#status-output). | #24 |

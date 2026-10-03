@@ -13,6 +13,10 @@ vault <command> [options] [dir] [args]
 - `compose`, `run`: option parsing stops at the first argument that is not a CLI option (for
   `run`, after the optional `[dir]`); that argument and everything after it are passed verbatim
   to compose. `--` ends option parsing explicitly.
+- `run` and `[dir]` (decided by #23, open point 1): the first positional argument is `[dir]`
+  only when it names an existing directory; otherwise it is the first compose argument
+  (`vault run config` passes `config` to the entrypoint). To pass an argument that happens to
+  name an existing directory, put `--` before it.
 - `vault` with no command prints the usage to stderr and exits 2.
 
 ## Commands
