@@ -250,8 +250,8 @@ vault: hint: run \"vault help\"" up --nope
 }
 
 @test "an unknown --opt=value names the option only" {
-  check_usage_error "vault: error: unknown option '--secret'
-vault: hint: run \"vault help\"" up --secret=hunter2
+  check_usage_error "vault: error: unknown option '--bogus'
+vault: hint: run \"vault help\"" up --bogus=xyz
 }
 
 @test "options outside their command are unknown" {
