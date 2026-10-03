@@ -48,12 +48,20 @@ Lowercase, mirroring the long flags.
 | `volume` | `-v` / `--volume` | yes | none | a `docker run -v` mount |
 | `env` | `-e` / `--env` | yes | none | `KEY=VALUE` or `KEY` (as `docker run -e`) |
 | `env-file` | `--env-file` | yes | none | a file path |
-| `stop-timeout` | `--stop-timeout` | no | `60` | positive integer (seconds) |
+| `stop-timeout` | `--stop-timeout` | no | `60` | positive integer (seconds): digits only, no leading zero |
 
 - `image=` changes the image only. Unlike `--image`, it does not change the name default nor
   skip the `/vault` mount.
-- Relative `volume` sources and `env-file` paths resolve against the directory holding
-  `.vaultrc`.
+- Relative paths resolve against the directory holding `.vaultrc` (`.vaultrc` entries only;
+  relative `-v` / `--env-file` flag values are passed to docker as given):
+
+  | Key | Relative when | Not resolved |
+  |-----|---------------|--------------|
+  | `volume` (source = text before the first `:`) | it starts with `.`, or contains `/` without a leading `/` | a bare name (named volume, e.g. `data:/data`); a value with no `:` (container path) |
+  | `env-file` | it has no leading `/` | absolute paths |
+
+  A leading `./` is dropped (`./data:/data` → `<rcdir>/data:/data`). `~` is **not** expanded
+  (`~/x` is treated as relative to the `.vaultrc` directory).
 - The guardrails apply to `.vaultrc` entries exactly as to flags
   ([privilege model](cli-commands.md#privilege-model)).
 
@@ -63,13 +71,15 @@ Lowercase, mirroring the long flags.
   everything after it, **verbatim**: no quoting, no escape handling, no variable expansion, no
   trimming of the value.
 - Values are never split on whitespace, so paths with spaces work.
-- `#` starts a comment only at the beginning of a line. Blank lines are ignored.
+- `#` starts a comment only at the beginning of a line. Blank and whitespace-only lines are
+  ignored.
 - A repeatable key adds one entry per line, in file order. A non-repeatable key given twice:
   the last line wins.
 - An unknown key warns and is skipped.
 - A non-blank, non-comment line without `=` fails, naming the line number.
-- A known key with an invalid value (e.g. `runtime=foo`, `stop-timeout=0`) fails, naming the
-  line number. `env` values are not validated and never echoed.
+- A known key with an invalid value (e.g. `runtime=foo`, `stop-timeout=0`, `stop-timeout=007`)
+  fails, naming the line number. An empty `image`, `port`, `volume` or `env-file` value is
+  invalid too. `env` values are not validated and never echoed.
 - Lines are numbered from 1. A missing `.vaultrc` is not an error.
 - Must work under bash 3.2 (plain indexed arrays only).
 
