@@ -65,7 +65,7 @@ Spec for epic #20 (Vault CLI). Written by #21.
 | Path | Contents |
 |------|----------|
 | `cli/bin/vault` | CLI main: the only CLI file that runs logic and reads the environment and `.vaultrc`. Holds the `VAULT_VERSION="X.Y.Z"` line and the `# BEGIN LIBS` … `# END LIBS` block. |
-| `cli/lib/*.sh` | CLI libraries (functions only). File names are chosen by #22 / #23. |
+| `cli/lib/*.sh` | CLI libraries (functions only, `# shellcheck shell=bash` instead of a shebang). #22 ships `output.sh` (`output_error`, `output_warning`, `output_hint`) and `usage.sh` (`usage_print`); #23 may add more. |
 | `cli/completion/vault.bash` | bash completion. |
 | `cli/completion/_vault` | zsh completion. |
 | `install.sh` | `curl \| bash` installer at the repo root; also a release asset. |
@@ -132,7 +132,7 @@ Every sub-issue of #20 is held to these guarantees:
 | #23 CLI core | `cli` | [cli-commands.md](cli-commands.md): syntax and flags, instance naming, runtime selection, privilege model, guardrails, diagnostics and exit codes; [cli-config.md](cli-config.md). |
 | #24 CLI commands | `cli` | [cli-commands.md](cli-commands.md): commands, `status` output, messages, edge cases, performance. |
 | #25 Shell completion | `cli` | [cli-commands.md → Shell completion](cli-commands.md#shell-completion); completion paths in [cli-install.md](cli-install.md). |
-| #26 Install path | `dev`, `cli` | [cli-install.md](cli-install.md); edge case 13 in [cli-commands.md](cli-commands.md#edge-cases). |
+| #26 Install path | `dev`, `cli`, `automation` | [cli-install.md](cli-install.md); edge case 13 in [cli-commands.md](cli-commands.md#edge-cases); wiring `bundle-cli` into the image targets and making `install.sh` required in the version scripts ([cli-tooling.md](cli-tooling.md)). |
 | #27 End-to-end test in CI | `automation` | [cli-tooling.md → Testing strategy](cli-tooling.md#testing-strategy); [cli-ci.md → PR pipeline](cli-ci.md#pr-pipeline). |
 | #28 GitHub release job | `automation` | [cli-ci.md → Release pipeline](cli-ci.md#release-pipeline). |
 | #29 User docs and agent docs sync | `product-owner`, `automation` | [Future work](#future-work); [cli-commands.md → Notes for the README](cli-commands.md#notes-for-the-readme). |
@@ -151,7 +151,7 @@ blocks #21.
 | 4 | Exact `status` layout (fields are fixed). | The draft in [cli-commands.md → status](cli-commands.md#status-output). | #24 |
 | 5 | How commands that skip `docker info` (`down`, `logs`, `status`, `compose`) tell a missing instance from an unreachable daemon. | Classify `docker inspect`'s failure: "No such object" → missing instance; anything else → `cannot reach the Docker daemon`. | #24 |
 | 6 | How a failed `docker run` is attributed to Sysbox vs. a busy port. | Docker's error mentioning `port is already allocated` / `address already in use` → port hint; any other start failure under `sysbox-runc` → Sysbox hint. | #24 |
-| 7 | Whether `test/lib/` (the in-image entrypoint tests) also runs under bash 3.2. | No: only `test/cli/` and `test/install/` must pass under bash 3.2; the image's own bash is current. | #22 |
+| 7 | Whether `test/lib/` (the in-image entrypoint tests) also runs under bash 3.2. | **Settled: No.** Only `test/cli/` and `test/install/` run under bash 3.2; `test/lib/` runs on `BATS_IMAGE` only (the image's own bash is current). | #22 (settled) |
 | 8 | Which image runs the `zsh -n` syntax check of `_vault`. | A pinned zsh image, called from `make test`. | #25 (with `automation`) |
 | 9 | `github-release` behaviour when the release already exists (job re-run). | Re-upload the assets, replacing existing ones. | #28 |
 | 10 | Whether `install.sh`'s staging dir needs to avoid `$TMPDIR` for Docker Desktop shared paths. | Use `mktemp -d` (Docker Desktop shares `/tmp` and `/var/folders` by default). | #26 |

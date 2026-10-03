@@ -21,6 +21,10 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 | `scripts/bump_version.sh X.Y.Z` (`make bump-version`) | Updates `VERSION`, the README `**Current Version:**` line, and the `VAULT_VERSION="…"` line in `cli/bin/vault` and `install.sh`. |
 | `scripts/check_tag_version.sh X.Y.Z` (`make check-version-tag`) | Fails unless the tag equals `VERSION`, the README line, and the `VAULT_VERSION` line of **both** `cli/bin/vault` and `install.sh`. A missing or duplicated line fails. |
 
+- Both scripts match the line with `^VAULT_VERSION="[0-9]+\.[0-9]+\.[0-9]+"$`.
+- **Until #26:** `cli/bin/vault` is always required; `install.sh` is stamped and checked only
+  when it exists (same exactly-one-line rule). #26 makes `install.sh` required.
+
 `install.sh` reads a caller-supplied `VAULT_VERSION` before its stamped line
 ([cli-install.md → Environment](cli-install.md#environment)).
 
@@ -44,7 +48,16 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 - The bundle is self-contained: it sources nothing at run time.
 - Libraries only define functions, so concatenating them has no side effects.
 - `cli` keeps the block and the libraries compatible with the rule; `automation` owns the script.
-- The list order and the library file names are chosen by #22 / #23.
+- In `cli/bin/vault`, each source line has the form
+  `source "$(dirname "${BASH_SOURCE[0]}")/../lib/<x>.sh"`.
+- Bundle order set by #22 (the `LIBS` array in `scripts/bundle_cli.sh`):
+
+  | # | Library | Functions |
+  |---|---------|-----------|
+  | 1 | `cli/lib/output.sh` | `output_error`, `output_warning`, `output_hint` (private `_output_print`); lines on stderr prefixed `vault: error: ` / `vault: warning: ` / `vault: hint: `. |
+  | 2 | `cli/lib/usage.sh` | `usage_print`. |
+
+- #23 appends its libraries to the list.
 
 ## Make targets and scripts
 
@@ -58,14 +71,24 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 
 - Existing targets keep their names and behaviour; `test` and `lint` are extended.
 - Every target that builds the image (`build-image`, and so `test-image`; `release`) runs
-  `bundle-cli` first, because the Dockerfile copies `build/vault`.
+  `bundle-cli` first, because the Dockerfile copies `build/vault`. **Wired by #26**, when the
+  Dockerfile starts copying the bundle; in #22 they do not depend on `bundle-cli` yet.
+- `scripts/test.sh` runs `scripts/bundle_cli.sh` before any bats run, so `build/vault` exists
+  for `test/cli/`.
+- CI (#22): `build-and-test` runs `make bundle-cli` after `make test` and before
+  `make test-image`.
 - `test-cli-e2e` builds the image and the bundle itself (it may depend on `build-image` and
   `bundle-cli`).
 - New variable:
 
   | Variable | Purpose |
   |----------|---------|
-  | `BASH32_TEST_IMAGE` | Tag of the bash 3.2 test image, built from `test/bash32/Dockerfile` (`FROM bash:3.2` + bats-core at a pinned tag). Its default value is chosen by #22. |
+  | `BASH32_TEST_IMAGE` | Tag of the bash 3.2 test image. Default `vault-bash32-test:local`. |
+
+- `scripts/test.sh` builds `BASH32_TEST_IMAGE` locally from `test/bash32/Dockerfile`
+  (`FROM bash:3.2`), only when a bash 3.2 suite has `.bats` files.
+- Pinned build args: bats-core `v1.14.0` (same as `BATS_IMAGE`), bats-support `v0.3.0`,
+  bats-assert `v2.1.0`. Both images load the helpers through `bats_load_library`.
 
 - Exact recipes, dependencies between targets and script internals are left to #22, #27 and
   #28. Make stays the only entry point.
@@ -74,9 +97,9 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 
 | Check | Covers |
 |-------|--------|
-| `make lint` (shellcheck) | Existing paths, plus `cli/bin/vault`, `cli/lib/*.sh`, `cli/completion/vault.bash`, `install.sh`, `test/cli/`, `test/install/`. |
+| `make lint` (shellcheck `-x`) | `*.sh` / `*.bats` under `source/`, `scripts/`, `cli/` and `test/` (so `cli/lib/*.sh`, `test/cli/`, `test/install/`), plus, by path when they exist, `cli/bin/vault`, `cli/completion/vault.bash`, `install.sh`. |
 | `make test` on `BATS_IMAGE` | `test/lib/`, `test/cli/`, `test/install/`. |
-| `make test` on `BASH32_TEST_IMAGE` | `test/cli/`, `test/install/` (and `test/lib/` if #22 decides so; open point 7). |
+| `make test` on `BASH32_TEST_IMAGE` | `test/cli/`, `test/install/` (whichever have `.bats` files). `test/lib/` is not run on bash 3.2 (open point 7, settled by #22). |
 | zsh syntax | `zsh -n cli/completion/_vault` (runner chosen by #25; open point 8). |
 
 ## Testing strategy
