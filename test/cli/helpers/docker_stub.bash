@@ -128,16 +128,26 @@ assert_docker_not_called() {
   fi
 }
 
-# Replaces PATH with a directory holding only the tools the CLI needs, and
-# no docker. Usage: docker_stub_hide
+# Replaces PATH with one directory linking every executable of the current
+# PATH except docker (and the stub), so nothing named docker is reachable.
+# Usage: docker_stub_hide
 docker_stub_hide() {
-  local dir="$BATS_TEST_TMPDIR/no-docker/bin" tool path
+  local dir="$BATS_TEST_TMPDIR/no-docker/bin" entry file name
+  local old_ifs="$IFS"
   mkdir -p "$dir"
-  for tool in bash env cat dirname basename tr sed grep mkdir rm printf; do
-    path="$(command -v "$tool" 2>/dev/null || true)"
-    case "$path" in
-      /*) ln -sf "$path" "$dir/$tool" ;;
-    esac
+  IFS=:
+  # shellcheck disable=SC2086 # split PATH on ":"
+  set -- $PATH
+  IFS="$old_ifs"
+  for entry in "$@"; do
+    [ -d "$entry" ] || continue
+    [ "$entry" != "$DOCKER_STUB_BIN" ] || continue
+    for file in "$entry"/*; do
+      name="${file##*/}"
+      [ "$name" != docker ] || continue
+      [ -x "$file" ] && [ ! -d "$file" ] || continue
+      [ -e "$dir/$name" ] || ln -s "$file" "$dir/$name"
+    done
   done
   PATH="$dir"
   export PATH
