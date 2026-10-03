@@ -7,13 +7,16 @@ PUSH ?= true
 
 export SHELLCHECK_IMAGE BATS_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test bump-version check-version-tag build-image test-image update-description release ci-release-setup
+.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image update-description release ci-release-setup
 
 lint:
 	scripts/lint.sh
 
 test:
 	scripts/test.sh
+
+bundle-cli:
+	scripts/bundle_cli.sh
 
 bump-version:
 	$(if $(VERSION),scripts/bump_version.sh $(VERSION),$(error VERSION is required, e.g. make bump-version VERSION=X.Y.Z))
