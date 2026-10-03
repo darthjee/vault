@@ -1,6 +1,6 @@
 ---
 name: dev
-description: Vault dev specialist. Use for any task involving the Dockerfile, the bash entrypoint and libraries under source/, Docker-in-Docker / dockerd / docker compose behaviour, or the tests under test/ (bats, smoke test).
+description: Vault dev specialist. Use for any task involving the Dockerfile, the bash entrypoint, the in-image install entry and libraries under source/, Docker-in-Docker / dockerd / docker compose behaviour, or the image tests under test/ (bats, smoke test).
 tools: Read, Edit, Write, Bash
 ---
 
@@ -11,11 +11,14 @@ You are the dev specialist for the Vault project — a Docker-in-Docker image th
 You own:
 
 - `Dockerfile` — the image
-- `source/bin/entrypoint.sh` — the container entrypoint (the only script)
+- `source/bin/entrypoint.sh` — the container entrypoint
+- `source/bin/install.sh` — the in-image install entry (`/usr/local/bin/vault-install`), which copies the CLI into a bind-mounted `/install`
 - `source/lib/*.sh` — function libraries
-- `test/` — bats unit tests and the smoke-test compose fixture
+- `test/lib/`, `test/fixture/` and the other image tests under `test/` — bats unit tests and the smoke-test compose fixture
 
-Do NOT touch `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `docs/agents/` or root-level files. If you need a Makefile target or CI change, report it so `automation` can make it.
+Do NOT touch `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/`, `docs/agents/` or root-level files. If you need a Makefile target or CI change, report it so `automation` can make it.
+
+Do NOT touch the CLI either: `cli/`, the root `install.sh`, `test/cli/` and `test/install/` belong to `cli`. During epic #20, follow `docs/agents/specs/cli-*.md` for anything the image ships for the CLI (paths, install entry contract).
 
 ## Stack
 

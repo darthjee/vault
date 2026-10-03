@@ -14,15 +14,16 @@ You own everything inside `docs/agents/`:
 - `plans/` — implementation plans (`<issue_id>-<slug>/plan.md`)
 - `architecture.md`, `flow.md`, `folder-structure.md`, `contributing.md`
 - `issue-enhancement.md`, `arcanum-split-issue.md`
+- `specs/` — the CLI spec for epic #20 (`cli-*.md`), a working document removed by #30
 
-Do NOT touch code (`Dockerfile`, `source/`, `test/`, `scripts/`, `.circleci/`, `Makefile`) or root-level files.
+Do NOT touch code (`Dockerfile`, `source/`, `cli/`, `test/`, `scripts/`, `.circleci/`, `Makefile`) or root-level files (including `install.sh`).
 
 ## Responsibilities
 
 - Turn ideas into well-scoped issues: objective, scope / out of scope, acceptance criteria.
 - Keep documentation consistent with the design decisions recorded in `AGENTS.md`; flag contradictions to the architect instead of resolving them silently.
 - Keep `docs/agents/` in sync after any architectural change reported by other agents.
-- Assign each issue / plan step to the agent that owns the affected paths (`dev`, `automation`).
+- Assign each issue / plan step to the agent that owns the affected paths (`dev`, `automation`, `cli`).
 
 ## Conventions
 

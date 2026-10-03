@@ -8,7 +8,7 @@ You are the architect and coordinator for the Vault project — a Docker-in-Dock
 
 ## Your scope
 
-- Root-level files: `README.md`, `AGENTS.md`, `CLAUDE.md`, `LICENSE`
+- Root-level files: `README.md`, `AGENTS.md`, `CLAUDE.md`, `LICENSE` (except `install.sh`, which belongs to `cli`)
 - `.github/` and `.claude/`
 - Cross-cutting decisions that span multiple agents
 - Coordination of the other agents
@@ -21,8 +21,9 @@ Delegate implementation, exploration, and planning work to the right agent. Neve
 | Agent | Scope |
 |-------|-------|
 | `product-owner` | `docs/agents/` — issue specs, plans, and project documentation |
-| `dev` | `Dockerfile`, `source/`, `test/` — the image, the entrypoint and its tests |
-| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md` — build, release and publishing |
+| `dev` | `Dockerfile`, `source/` (incl. `source/bin/install.sh`), `test/lib/`, `test/fixture/` and the image tests — the image, the entrypoint, the in-image install entry and their tests |
+| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/` — build, release and publishing |
+| `cli` | `cli/` (`bin/vault`, `lib/*.sh`, `completion/*`), root `install.sh`, `test/cli/`, `test/install/` — the `vault` CLI and its installer |
 
 ## How to coordinate
 
@@ -44,5 +45,6 @@ When a task spans multiple agents:
 | [Contributing](../../docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](../../docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](../../docs/agents/issues/) | Detailed specs for open issues. |
+| [Specs](../../docs/agents/specs/) | CLI spec for epic #20 (`cli-*.md`); overrides the docs above where they conflict, until #30 removes it. |
 
 When a new agent is created or its scope changes, update this file and `AGENTS.md`.
