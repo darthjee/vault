@@ -12,7 +12,7 @@
 | `Makefile` | The only entry point for developers and CI. See [Makefile](#makefile). |
 | `VERSION` | Current version; checked against the release tag. |
 | `DOCKERHUB_DESCRIPTION.md` | Docker Hub page content. |
-| `docs/agents/` | Agent documentation, issues (`issues/`) and implementation plans (`plans/`). |
+| `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and, temporarily during epic #20, the CLI spec (`specs/`, which overrides the other docs where they conflict; removed by #30). |
 | `.github/` | PR template, commit message template, Copilot pointer. |
 | `.claude/` | Claude agents, check scripts and configuration. |
 
