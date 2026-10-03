@@ -11,6 +11,20 @@ VAULT_VERSION="0.0.1"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/output.sh"
 # shellcheck source=SCRIPTDIR/../lib/usage.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/usage.sh"
+# shellcheck source=SCRIPTDIR/../lib/docker.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/docker.sh"
+# shellcheck source=SCRIPTDIR/../lib/args.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/args.sh"
+# shellcheck source=SCRIPTDIR/../lib/naming.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/naming.sh"
+# shellcheck source=SCRIPTDIR/../lib/config.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/config.sh"
+# shellcheck source=SCRIPTDIR/../lib/guardrails.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/guardrails.sh"
+# shellcheck source=SCRIPTDIR/../lib/runtime.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/runtime.sh"
+# shellcheck source=SCRIPTDIR/../lib/container.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/container.sh"
 # END LIBS
 
 # Dispatches on the first argument.
@@ -43,6 +57,71 @@ vault_help() {
   usage_print
 }
 
+# Resolves everything a command needs, in order: options, .vaultrc, the
+# merge with flags and defaults, the instance name, docker on PATH, then for
+# up/run: docker info (daemon, rootless, runtime), the guardrails and the
+# `docker run` argument list. The only place that reads PWD, DOCKER_HOST,
+# .vaultrc and tests for .vault.env.
+# Usage: vault_resolve <up|down|logs|status|compose|run> <args...>
+# Sets the ARGS_*, CONFIG_*, NAMING_NAME, VAULT_DIR, VAULT_DIR_GIVEN and,
+# for up/run, RUNTIME_* and CONTAINER_ARGS. Stops early (status 0) on -h.
+# Returns 1 (runtime/environment error) or 2 (usage error) on failure.
+vault_resolve() {
+  local command="$1"
+  shift
+
+  args_parse "$command" "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    return 0
+  fi
+
+  vault_resolve_dir
+  config_reset
+  if [ -f "$VAULT_DIR/.vaultrc" ]; then
+    config_parse "$VAULT_DIR" <"$VAULT_DIR/.vaultrc" || return
+  fi
+  config_merge "$VAULT_VERSION"
+  naming_resolve "$CONFIG_NAME" "$ARGS_IMAGE_SET" "$ARGS_IMAGE" "$VAULT_DIR_GIVEN" "$VAULT_DIR" || return
+
+  runtime_check_docker || return
+  case "$command" in
+    up | run) ;;
+    *) return 0 ;;
+  esac
+
+  runtime_resolve "$CONFIG_RUNTIME" || return
+  guardrails_check_all "${DOCKER_HOST:-}" || return
+  if [ -f "$VAULT_DIR/.vault.env" ]; then
+    config_vault_env "$VAULT_DIR" 1
+  fi
+  container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH"
+}
+
+# Sets VAULT_DIR (the [dir] as an absolute path when it exists, else as
+# given; $PWD without [dir]) and VAULT_DIR_GIVEN (0/1).
+# Usage: vault_resolve_dir
+vault_resolve_dir() {
+  VAULT_DIR="$PWD"
+  VAULT_DIR_GIVEN=0
+  if [ "$ARGS_DIR_SET" = 1 ]; then
+    VAULT_DIR_GIVEN=1
+    VAULT_DIR="$ARGS_DIR"
+    if [ -d "$ARGS_DIR" ]; then
+      VAULT_DIR="$(CDPATH="" cd -- "$ARGS_DIR" && pwd)"
+    fi
+  fi
+}
+
+# Prints the dir mounted on /vault, or nothing when --image was given
+# without [dir].
+# Usage: vault_mount_dir
+vault_mount_dir() {
+  if [ "$ARGS_IMAGE_SET" = 1 ] && [ "$VAULT_DIR_GIVEN" = 0 ]; then
+    return 0
+  fi
+  printf '%s\n' "$VAULT_DIR"
+}
+
 # Reports an unknown command and returns 2.
 # Usage: vault_unknown_command <command>
 vault_unknown_command() {
@@ -51,4 +130,7 @@ vault_unknown_command() {
   return 2
 }
 
-vault_main "$@"
+# Runs only when executed, not when sourced (tests source this file).
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  vault_main "$@"
+fi
