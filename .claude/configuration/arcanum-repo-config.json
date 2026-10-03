@@ -4,5 +4,17 @@
       "Codacy"
     ]
   },
-  "version": "1.1.1"
+  "version": "1.1.1",
+  "git": {
+    "email": "darthjee+{agent}@gmail.com",
+    "omit_model_coauthor": true,
+    "merge_body_mode": "coauthors",
+    "agents": {
+      "architect": "darthjee+architect@gmail.com",
+      "automation": "darthjee+backend@gmail.com",
+      "cli": "darthjee+frontend@gmail.com",
+      "dev": "darthjee+backend@gmail.com",
+      "product-owner": "darthjee+product-owner@gmail.com"
+    }
+  }
 }
