@@ -25,7 +25,7 @@ vault <command> [options] [dir] [args]
 
 | Command | Behaviour |
 |---------|-----------|
-| `vault up [options] [dir]` | `docker run -d` of the image as `vault-<name>`. Detached by default; `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the image's graceful shutdown. Already running → no-op. Exists but stopped → `docker rm`, then a fresh `docker run` with the current flags. |
+| `vault up [options] [dir]` | `docker run -d` of the image as `vault-<name>`. Detached by default (docker's container ID is not printed, only `vault-<name> started`); `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the image's graceful shutdown. Already running → no-op. Exists but stopped → `docker rm`, then a fresh `docker run` with the current flags. |
 | `vault down [options]` | `docker stop -t <stop-timeout>`, then `docker rm` of `vault-<name>`. The data volume is never removed. A missing instance exits 0. |
 | `vault logs [options] [-f]` | `docker logs [-f] vault-<name>`. Fails when the instance is not running. |
 | `vault status [options]` | Reports the instance (see [status output](#status-output)). A missing or stopped instance is reported, not a failure (exit 0). |
@@ -77,11 +77,12 @@ Settled by #24 (open point 5). One call,
 |--------|-------|
 | exit 0, `true` | `running` |
 | exit 0, anything else | `stopped` |
-| non-zero exit, stderr containing `No such object` | `missing` (docker's stderr is not shown) |
+| non-zero exit, stderr containing `No such object` or `no such object` | `missing` (docker's stderr is not shown) |
 | any other non-zero exit | docker's stderr passed through, then the "daemon unreachable" message, exit 1 |
 
 - Used by `up`, `down`, `logs`, `status`, `compose` and `run`. `down`, `logs`, `status` and
   `compose` still never call `docker info`.
+- Both cases of `No such object` are matched: newer docker (e.g. 29.x) prints it lower case.
 - `run` checks it after `vault_resolve`, before `docker run`: `running` → the "`run` while
   running" message, exit 1.
 
@@ -200,8 +201,17 @@ env:      RAILS_ENV, SECRET_KEY_BASE
 - `state` is `running`, `stopped` or `not found`. With `not found`, only `name` and `state` are
   printed.
 - Labels are padded to the width of `runtime:` plus one space. Multiple ports and env keys are
-  joined with `, `.
-- `runtime` is `sysbox-runc` or `privileged`, read from the container (`docker inspect`).
+  joined with `, `. A field with an empty value prints just its label, with no trailing spaces
+  (e.g. `env:`).
+- Data sources: one `docker inspect` of the container, plus one `docker image inspect` of its
+  image (for `env`).
+
+| Field | Source |
+|-------|--------|
+| `ports` | `HostConfig.PortBindings` (`HOST->CONTAINER/proto`), so they show when stopped too. |
+| `runtime` | `sysbox-runc` when that runtime is used; else `privileged` when `HostConfig.Privileged` is true; else docker's runtime name (e.g. `runc`). |
+| `env` | Keys of `Config.Env` not defined by the image itself (an image key overridden with `-e` is omitted too). If `docker image inspect` fails, every key is listed. |
+
 - `env` lists keys only, never values. No value from an env file is ever printed.
 
 ## Diagnostics and exit codes
@@ -214,7 +224,7 @@ env:      RAILS_ENV, SECRET_KEY_BASE
 - Docker's own errors are passed through unchanged (stderr), before the CLI's message.
 - **Missing instance vs. unreachable daemon** (open point 5, #24): commands that skip
   `docker info` classify the failure of `docker inspect` ([instance state](#instance-state)).
-  stderr containing `No such object` means the instance is missing (docker's stderr is not
+  stderr containing `No such object` (any case of the `N`) means the instance is missing (docker's stderr is not
   shown); any other failure means the daemon is unreachable.
 - **Failed `docker run` attribution** (open point 6, #24): applies to `up` (detached and `-f`,
   only when docker fails before the container starts) and `run`. On a non-zero `docker run`
