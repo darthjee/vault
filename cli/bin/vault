@@ -45,6 +45,8 @@ vault_main() {
     down) vault_down "$@" ;;
     logs) vault_logs "$@" ;;
     status) vault_status "$@" ;;
+    compose) vault_compose "$@" ;;
+    run) vault_run "$@" ;;
     version) vault_version "$@" ;;
     help | -h | --help) vault_help "$@" ;;
     *) vault_unknown_command "$command" ;;
@@ -163,6 +165,54 @@ vault_status() {
   instance_status_print "$NAMING_NAME" "$INSTANCE_STATE"
 }
 
+# Runs `docker compose <args>` inside the running vault-<name>, with -i/-t
+# when stdin/stdout are TTYs. Returns the inner command's exit code.
+# Usage: vault_compose [options] <args...>
+vault_compose() {
+  local container
+
+  vault_resolve compose "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_require_running "$NAMING_NAME" || return
+  instance_tty_flags
+  container="$(naming_container "$NAMING_NAME")"
+  docker_run_cmd exec ${INSTANCE_TTY_ARGS[@]+"${INSTANCE_TTY_ARGS[@]}"} "$container" \
+    docker compose ${ARGS_PASSTHROUGH[@]+"${ARGS_PASSTHROUGH[@]}"}
+}
+
+# One-shot `docker run --rm` (foreground) passing <args> to the image's
+# entrypoint. Refused while vault-<name> is running. Returns the inner
+# command's exit code (contract 5 for docker's own 125-127).
+# Usage: vault_run [options] [dir] <args...>
+vault_run() {
+  local mount_dir container
+
+  vault_resolve run "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  mount_dir="$(vault_mount_dir)"
+  if [ -n "$mount_dir" ]; then
+    instance_check_compose_file "$mount_dir"
+  fi
+
+  instance_state "$NAMING_NAME" || return
+  if [ "$INSTANCE_STATE" = running ]; then
+    container="$(naming_container "$NAMING_NAME")"
+    output_error "instance $container is running"
+    output_hint 'stop it with "vault down", or use "vault compose"'
+    return 1
+  fi
+
+  vault_docker_run 1
+}
+
 # Runs `docker run` with CONTAINER_ARGS and attributes a failure
 # (contract 5). <passthrough> = 1 (run, up -f): stdout is shown and the
 # inner command's exit code is returned; 0 (up detached): stdout (the
@@ -183,8 +233,9 @@ vault_docker_run() {
 
 # Resolves everything a command needs, in order: options, .vaultrc, the
 # merge with flags and defaults, the instance name, docker on PATH, then for
-# up/run: docker info (daemon, rootless, runtime), the guardrails and the
-# `docker run` argument list. The only place that reads PWD, DOCKER_HOST,
+# up/run: the [dir] check, docker info (daemon, rootless, runtime), the
+# guardrails and the `docker run` argument list (for run, with the TTY
+# flags of instance_tty_flags). The only place that reads PWD, DOCKER_HOST,
 # .vaultrc and tests for .vault.env.
 # Usage: vault_resolve <up|down|logs|status|compose|run> <args...>
 # Sets the ARGS_*, CONFIG_*, NAMING_NAME, VAULT_DIR, VAULT_DIR_GIVEN and,
@@ -221,7 +272,12 @@ vault_resolve() {
   if [ -f "$VAULT_DIR/.vault.env" ]; then
     config_vault_env "$VAULT_DIR" 1
   fi
-  container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH"
+  INSTANCE_TTY_ARGS=()
+  if [ "$command" = run ]; then
+    instance_tty_flags
+  fi
+  container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH" \
+    ${INSTANCE_TTY_ARGS[@]+"${INSTANCE_TTY_ARGS[@]}"}
 }
 
 # Fails when [dir] was given and does not exist (up and run, before any
