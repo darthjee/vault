@@ -79,10 +79,11 @@ Modelled after the `navi` project:
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
 - `update-description`: pushes `DOCKERHUB_DESCRIPTION.md` via `darthjee/scripts`' `docker_hub.sh`.
-- On PRs / branches: the `build-and-test` job runs `make lint`, `make test` and
+- On PRs / branches: the `build-and-test` job runs `make lint`, `make test`,
   `make test-image` (build the image, then start Vault `--privileged` with a tiny compose file,
-  `curl` the exposed port, stop it). Docker jobs use the `machine: image: ubuntu-2404:current`
-  executor (the bare `machine: true` form is deprecated).
+  `curl` the exposed port, stop it) and then `make test-cli-e2e` (drive the bundled CLI
+  `up` / `status` / `compose ps` / `down` against that image, then `install.sh` from it).
+  Docker jobs use the `machine: image: ubuntu-2404:current` executor (the bare `machine: true` form is deprecated).
 - Credentials: `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD`, stored in the restricted
   CircleCI context `docker-hub` (not project env vars) and attached only to the release jobs
   `build-and-release` and `update-description`. PR jobs never receive them.
@@ -90,6 +91,7 @@ Modelled after the `navi` project:
   logic lives in `scripts/*.sh`, and CI-only wrappers (`docker login`, buildx/QEMU setup,
   fetching `docker_hub.sh`) live in `scripts/ci/`.
 - Makefile targets: `build-image`, `lint` (shellcheck), `test` (bats), `test-image`,
+  `test-cli-e2e` (after `test-image` in CI),
   `bump-version VERSION=X.Y.Z`, `check-version-tag TAG=X.Y.Z`, `release TAG=x` (fails fast
   without `TAG`), `update-description`, `ci-release-setup` (CI-only).
   Variables: `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `IMAGE`, `DOCKER_VERSION` (build arg for the

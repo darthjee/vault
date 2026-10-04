@@ -9,7 +9,7 @@ PUSH ?= true
 
 export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image update-description release require-tag ci-release-setup
+.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release require-tag ci-release-setup
 
 lint:
 	scripts/lint.sh
@@ -31,6 +31,9 @@ build-image: bundle-cli
 
 test-image: build-image
 	scripts/test_image.sh
+
+test-cli-e2e: build-image
+	scripts/test_cli_e2e.sh
 
 update-description:
 	scripts/ci/update_description.sh
