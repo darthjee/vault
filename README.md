@@ -472,6 +472,7 @@ make bundle-cli    # bundle cli/ into build/vault
 make build-image   # bundle the CLI, then build darthjee/vault:dev
 make lint          # shellcheck
 make test          # bats unit tests (CLI tests also run under bash 3.2)
+make test-docs     # check links in docs/guides/
 make test-image    # build, then smoke-test the image (needs Docker with --privileged)
 make test-cli-e2e  # build, then drive a real instance with build/vault and test install.sh
 ```
