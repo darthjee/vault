@@ -5,7 +5,7 @@ Main plan: [plan.md](plan.md)
 ## Shared contracts
 
 - Write exactly the four spec files listed in the main plan; `guides-overview.md` is the index.
-- Hub row in `docs/agents/specs.md`: `| [\`guides-\`](specs/guides-overview.md) | #39 | #48 |`.
+- Hub row in `docs/agents/specs.md`: exactly the row given in the main plan (prefix `guides-` linking to `specs/guides-overview.md`, epic #39, removed by #48).
 - `architect` updates `.claude/agents/product-owner.md`, `.claude/agents/architect.md` and
   `AGENTS.md` to list `docs/guides/` in your scope; use the same wording in
   `folder-structure.md` and `guides-overview.md`.
