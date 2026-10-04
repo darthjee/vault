@@ -64,6 +64,17 @@ setup() {
   assert_equal "$INSTANCE_STATE" missing
 }
 
+@test "instance_state reports missing on the lowercase no such object of newer docker" {
+  docker_stub_set inspect "" 1 "error: no such object: vault-app"
+
+  run --separate-stderr instance_state app
+  assert_success
+  assert_equal "$stderr" ""
+
+  instance_state app
+  assert_equal "$INSTANCE_STATE" missing
+}
+
 @test "instance_state fails when the daemon is unreachable" {
   docker_stub_set inspect "" 1 "$DAEMON_DOWN"
 

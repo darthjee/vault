@@ -41,6 +41,7 @@ vault_main() {
   shift
 
   case "$command" in
+    up) vault_up "$@" ;;
     version) vault_version "$@" ;;
     help | -h | --help) vault_help "$@" ;;
     *) vault_unknown_command "$command" ;;
@@ -57,6 +58,63 @@ vault_version() {
 # Usage: vault_help
 vault_help() {
   usage_print
+}
+
+# Starts vault-<name>: detached by default, in the foreground with -f.
+# Already running: no-op, prints the status. Stopped: docker rm, then a
+# fresh docker run with the current flags (the volume is kept).
+# Usage: vault_up [options] [dir]
+vault_up() {
+  local mount_dir container
+
+  vault_resolve up "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  mount_dir="$(vault_mount_dir)"
+  if [ -n "$mount_dir" ]; then
+    instance_check_compose_file "$mount_dir"
+  fi
+
+  container="$(naming_container "$NAMING_NAME")"
+  instance_state "$NAMING_NAME" || return
+  case "$INSTANCE_STATE" in
+    running)
+      printf '%s is already running\n' "$container"
+      instance_status_print "$NAMING_NAME" running
+      return
+      ;;
+    stopped)
+      docker_run_cmd rm "$container" >/dev/null || return 1
+      ;;
+  esac
+
+  if [ "$ARGS_ATTACH" = 1 ]; then
+    vault_docker_run 1
+    return
+  fi
+  vault_docker_run 0 || return
+  printf '%s started\n' "$container"
+}
+
+# Runs `docker run` with CONTAINER_ARGS and attributes a failure
+# (contract 5). <passthrough> = 1 (run, up -f): stdout is shown and the
+# inner command's exit code is returned; 0 (up detached): stdout (the
+# container ID) is discarded.
+# Usage: vault_docker_run <passthrough 0|1>
+vault_docker_run() {
+  local passthrough="$1" quiet=1 file rc=0 err
+
+  if [ "$passthrough" = 1 ]; then
+    quiet=0
+  fi
+  file="$(mktemp)" || return 1
+  instance_docker_run "$file" "$quiet" "${CONTAINER_ARGS[@]}" || rc=$?
+  err="$(cat "$file")"
+  rm -f "$file"
+  instance_run_result "$rc" "$err" "$passthrough"
 }
 
 # Resolves everything a command needs, in order: options, .vaultrc, the
@@ -78,6 +136,9 @@ vault_resolve() {
   fi
 
   vault_resolve_dir
+  case "$command" in
+    up | run) vault_check_dir || return ;;
+  esac
   config_reset
   if [ -f "$VAULT_DIR/.vaultrc" ]; then
     config_parse "$VAULT_DIR" <"$VAULT_DIR/.vaultrc" || return
@@ -97,6 +158,18 @@ vault_resolve() {
     config_vault_env "$VAULT_DIR" 1
   fi
   container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH"
+}
+
+# Fails when [dir] was given and does not exist (up and run, before any
+# docker call).
+# Usage: vault_check_dir
+# Returns 1 with "directory not found: <dir>" (<dir> as given).
+vault_check_dir() {
+  if [ "$VAULT_DIR_GIVEN" = 1 ] && [ ! -d "$VAULT_DIR" ]; then
+    output_error "directory not found: $ARGS_DIR"
+    return 1
+  fi
+  return 0
 }
 
 # Sets VAULT_DIR (the [dir] as an absolute path when it exists, else as
