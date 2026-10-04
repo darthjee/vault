@@ -62,3 +62,5 @@ mounts and persistence.
 | [configuration.md](vault/configuration.md) | Environment variables, multiple compose files, passing variables, secrets handling. |
 | [operations.md](vault/operations.md) | Day to day: data volume, shutdown and stop timeouts, logs, compose commands, service failures. |
 | [troubleshooting.md](vault/troubleshooting.md) | Startup and shutdown messages, image and CLI exit codes, common mistakes. |
+| [examples.md](vault/examples.md) | Worked setups (app + Postgres, app + Redis, multiple compose files, baked image with offline preload), each with `docker run` and CLI variants. |
+| [agents-snippet.md](vault/agents-snippet.md) | A block to paste into your repo's `AGENTS.md` pointing at these guides, with the key rules. |
