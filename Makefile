@@ -1,12 +1,13 @@
 SHELLCHECK_IMAGE ?= koalaman/shellcheck:v0.11.0
 BATS_IMAGE ?= bats/bats:1.14.0
 BASH32_TEST_IMAGE ?= vault-bash32-test:local
+ZSH_IMAGE ?= zshusers/zsh:5.9
 IMAGE ?= darthjee/vault:dev
 SMOKE_TIMEOUT ?= 120
 RELEASE_IMAGE ?= darthjee/vault
 PUSH ?= true
 
-export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
+export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
 .PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image update-description release ci-release-setup
 
