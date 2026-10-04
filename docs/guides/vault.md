@@ -59,3 +59,6 @@ mounts and persistence.
 | [cli.md](vault/cli.md) | The `vault` CLI: install, commands, instances, runtime, options, `.vaultrc`, `.vault.env`, guardrails, baked images, completion. |
 | [docker-run.md](vault/docker-run.md) | Running the image directly: runtime, `/vault` mount, data volume, ports, env vars, compose arguments, stopping. |
 | [base-image.md](vault/base-image.md) | Shipping a stack as its own image: Dockerfile, offline preload, running the baked image, secrets. |
+| [configuration.md](vault/configuration.md) | Environment variables, multiple compose files, passing variables, secrets handling. |
+| [operations.md](vault/operations.md) | Day to day: data volume, shutdown and stop timeouts, logs, compose commands, service failures. |
+| [troubleshooting.md](vault/troubleshooting.md) | Startup and shutdown messages, image and CLI exit codes, common mistakes. |

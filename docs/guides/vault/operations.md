@@ -162,5 +162,5 @@ running one: see [Never share the data volume](#never-share-the-data-volume). Th
   vault up -e COMPOSE_UP_ARGS="--abort-on-container-exit"
   ```
 
-The container then exits with compose's exit code; see `troubleshooting.md` for exit codes and
+The container then exits with compose's exit code; see [troubleshooting.md → Exit codes](troubleshooting.md#exit-codes) for exit codes and
 [configuration.md → `COMPOSE_UP_ARGS`](configuration.md#compose_up_args) for the variable.

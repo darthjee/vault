@@ -307,14 +307,14 @@ vault up --name app-b -p 3001:80 ~/b/app
 
 - The image's environment variables (`COMPOSE_UP_ARGS`, `VAULT_DOCKERD_TIMEOUT`,
   `COMPOSE_FILE`, other `COMPOSE_*`) are passed with `-e` or an env file; the CLI does not
-  interpret them. They are described in `configuration.md` (not written yet).
+  interpret them. They are described in [configuration.md](configuration.md#environment-variables).
 
   ```bash
   vault up -e COMPOSE_UP_ARGS="--abort-on-container-exit" -p 8080:80
   ```
 
-- What the stop timeout covers (the shutdown sequence) is described in `operations.md` (not
-  written yet).
+- What the stop timeout covers (the shutdown sequence) is described in
+  [operations.md → Shutdown](operations.md#shutdown).
 
 ## `.vault.env`
 
@@ -329,8 +329,8 @@ DATABASE_PASSWORD=change-me
 ```
 
 It usually holds secrets: keep it out of git (add `.vault.env` to `.gitignore`). `vault status`
-shows env keys only, never values. Secrets handling is detailed in `configuration.md` (not
-written yet); see also [security.md → Secrets](security.md#secrets).
+shows env keys only, never values. Secrets handling is detailed in
+[configuration.md → Secrets handling](configuration.md#secrets-handling); see also [security.md → Secrets](security.md#secrets).
 
 ## `.vaultrc`
 

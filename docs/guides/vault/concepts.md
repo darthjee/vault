@@ -94,9 +94,9 @@ docker run ... -v vault-data:/var/lib/docker darthjee/vault:<version>
 ```
 
 Without it, every start pulls the images again and inner data is lost with the container.
-Using the data volume day to day (sharing, cleanup) is covered in `vault/operations.md`
-(not written yet). Never mount the same `/var/lib/docker` volume into two running Vault
-containers.
+Using the data volume day to day (sharing, cleanup) is covered in
+[operations.md → Persistence and the data volume](operations.md#persistence-and-the-data-volume). Never mount the same `/var/lib/docker`
+volume into two running Vault containers.
 
 ## Startup sequence
 

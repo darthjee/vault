@@ -31,7 +31,7 @@ usual.
 | Value | Runs |
 |-------|------|
 | empty (default) | `docker compose up` |
-| `--abort-on-container-exit` | `docker compose up --abort-on-container-exit` (fail fast, see `operations.md`) |
+| `--abort-on-container-exit` | `docker compose up --abort-on-container-exit` (fail fast, see [operations.md → Service failures](operations.md#service-failures)) |
 | `--pull never` | `docker compose up --pull never` (no pulls, see [base-image.md → Offline preload](base-image.md#offline-preload)) |
 | `--pull never --abort-on-container-exit` | both |
 
@@ -43,7 +43,7 @@ usual.
 - It must be a positive integer (`1`, `30`, `120`). Anything else (`0`, `-5`, `30s`)
   stops the container at startup with exit code `1` and
   `VAULT_DOCKERD_TIMEOUT must be a positive integer, got: '<value>'`. See
-  `troubleshooting.md` for every startup error.
+  [troubleshooting.md → Startup errors](troubleshooting.md#startup-errors) for every startup error.
 
 ## Multiple compose files
 
