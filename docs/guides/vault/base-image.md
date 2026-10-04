@@ -37,7 +37,7 @@ can start without pulling:
 
    ```bash
    mkdir -p images
-   docker save -o images/my-app.tar my-app
+   docker save -o images/my-app.tar my-app:1.0
    docker save -o images/postgres.tar postgres:17
    ```
 
@@ -64,7 +64,7 @@ or set `pull_policy:` per service in the compose file:
 # /vault/docker-compose.yml
 services:
   app:
-    image: my-app
+    image: my-app:1.0
     pull_policy: never
     ports: ["80:3000"]
 ```

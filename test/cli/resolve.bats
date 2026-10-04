@@ -331,7 +331,7 @@ vault: hint: is Docker running, and can this user access it?"
 
     assert_failure 1
     assert_equal "$stderr" 'vault: error: rootless Docker is not supported
-vault: hint: see "Supported runtimes" in the README'
+vault: hint: see Security in the README'
   done
 }
 
