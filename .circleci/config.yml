@@ -17,6 +17,9 @@ jobs:
           name: Run unit tests
           command: make test
       - run:
+          name: Check guides links
+          command: make test-docs
+      - run:
           name: Build CLI bundle
           command: make bundle-cli
       - run:
@@ -31,7 +34,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Check tag matches VERSION, README and VAULT_VERSION lines
+          name: Check tag matches VERSION, README, guides and VAULT_VERSION lines
           command: make check-version-tag TAG="$CIRCLE_TAG"
 
   build-and-release:

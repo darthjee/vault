@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Usage: scripts/bump_version.sh X.Y.Z
-# Updates the VERSION file, the README "**Current Version:**" line and the
+# Updates the VERSION file, the README "**Current Version:**" line, the
+# "**Vault version:** X.Y.Z" line of docs/guides/vault.md and the
 # VAULT_VERSION="X.Y.Z" line of cli/bin/vault and install.sh.
-# Fails before writing anything if a target file lacks that line or has more
-# than one.
+# Fails before writing anything if a target file is missing, lacks its version
+# line or has more than one.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,7 +12,9 @@ VERSION_FILE="$ROOT/VERSION"
 README_FILE="$ROOT/README.md"
 CLI_FILE="$ROOT/cli/bin/vault"
 INSTALL_FILE="$ROOT/install.sh"
+GUIDES_FILE="$ROOT/docs/guides/vault.md"
 VAULT_VERSION_REGEX='^VAULT_VERSION="[0-9]+\.[0-9]+\.[0-9]+"$'
+GUIDES_VERSION_REGEX='^\*\*Vault version:\*\* [0-9]+\.[0-9]+\.[0-9]+$'
 
 new_version="${1:-}"
 
@@ -49,6 +52,21 @@ for file in "${version_files[@]}"; do
   fi
 done
 
+guides_name="${GUIDES_FILE#"$ROOT"/}"
+if [ ! -f "$GUIDES_FILE" ]; then
+  echo "error: $guides_name not found" >&2
+  exit 1
+fi
+count="$(grep -cE "$GUIDES_VERSION_REGEX" "$GUIDES_FILE" || true)"
+if [ "$count" -eq 0 ]; then
+  echo "error: no '**Vault version:**' line found in $guides_name" >&2
+  exit 1
+fi
+if [ "$count" -gt 1 ]; then
+  echo "error: $count '**Vault version:**' lines found in $guides_name (expected 1)" >&2
+  exit 1
+fi
+
 tmp_file=""
 trap 'rm -f "$tmp_file"' EXIT
 
@@ -68,6 +86,8 @@ rewrite() {
 printf '%s\n' "$new_version" > "$VERSION_FILE"
 
 rewrite "$README_FILE" "s/^\*\*Current Version:\*\* .*/**Current Version:** ${new_version}/"
+
+rewrite "$GUIDES_FILE" -E "s/${GUIDES_VERSION_REGEX}/**Vault version:** ${new_version}/"
 
 for file in "${version_files[@]}"; do
   rewrite "$file" -E "s/${VAULT_VERSION_REGEX}/VAULT_VERSION=\"${new_version}\"/"

@@ -11,8 +11,8 @@ You are the automation specialist for the Vault project — a Docker-in-Docker i
 You own:
 
 - `.circleci/config.yml` — CI and release pipeline
-- `Makefile` — `build-image`, `lint`, `test`, `test-image`, `release`, `github-release`, `update-description`
-- `scripts/` — `bump_version.sh`, `check_tag_version.sh`, `github_release.sh`, `ci/*`
+- `Makefile` — `build-image`, `lint`, `test`, `test-docs`, `test-image`, `release`, `github-release`, `update-description`
+- `scripts/` — `bump_version.sh`, `check_tag_version.sh`, `check_guides_links.sh`, `github_release.sh`, `ci/*`
 - `VERSION`
 - `DOCKERHUB_DESCRIPTION.md`
 - `test/bash32/` — the bash 3.2 test image (`FROM bash:3.2` + pinned bats-core)
@@ -32,6 +32,7 @@ Do NOT touch `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `ins
 
 ```bash
 make lint                     # shellcheck
+make test-docs                # link check of docs/guides/
 circleci config validate      # if the CircleCI CLI is installed
 ```
 
@@ -40,9 +41,10 @@ circleci config validate      # if the CircleCI CLI is installed
 - Follow the release design in `AGENTS.md` (modelled after the `navi` project):
   - release jobs only on `X.Y.Z` tags (`branches: ignore: /.*/`)
   - `check-version-tag` + `build-and-test` → `build-and-release` → `update-description` and `github-release`
-  - tag must match `VERSION` and the README `**Current Version:**` line
+  - tag must match `VERSION`, the README `**Current Version:**` line, the `VAULT_VERSION` lines
+    and the `**Vault version:**` line of `docs/guides/vault.md`
   - push `:<version>` and `:latest`
-- PRs / branches run `make lint`, `make test`, `make test-image`.
+- PRs / branches run `make lint`, `make test`, `make test-docs`, `make test-image`.
 - Credentials only from restricted CircleCI contexts: `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD`
   (context `docker-hub`), `GITHUB_TOKEN` (context `github`, only for `github-release`).
 - `release` and other publishing targets fail fast when `TAG` is unset.

@@ -107,6 +107,8 @@ user docs: the README `## CLI` section.
   `vault`, `install.sh`, `vault.bash`, `_vault` and `SHA256SUMS`.
 - **Versioning:** `cli/bin/vault` and `install.sh` each hold one `VAULT_VERSION="X.Y.Z"`
   line, stamped by `scripts/bump_version.sh` and checked by `scripts/check_tag_version.sh`.
+  `docs/guides/vault.md` likewise holds one `**Vault version:** X.Y.Z` line, stamped and
+  checked by the same scripts.
 
 ### Release (CircleCI)
 
@@ -116,7 +118,8 @@ Modelled after the `navi` project:
 - Chain: `check-version-tag` + `build-and-test` → `build-and-release` → `update-description`
   and `github-release` (in parallel).
 - `check-version-tag`: tag must match the `VERSION` file, the README `**Current Version:**`
-  line and the `VAULT_VERSION="X.Y.Z"` lines of `cli/bin/vault` and `install.sh`;
+  line, the `VAULT_VERSION="X.Y.Z"` lines of `cli/bin/vault` and `install.sh` and the
+  `**Vault version:**` line of `docs/guides/vault.md`;
   `scripts/bump_version.sh X.Y.Z` updates all of them.
 - `build-and-release`: `make ci-release-setup` (buildx/QEMU setup + `docker login`), then
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
@@ -128,6 +131,7 @@ Modelled after the `navi` project:
   with `--clobber`, using the `gh` CLI from the machine image. A failure never rolls back the
   Docker image; the job can be re-run.
 - On PRs / branches: the `build-and-test` job runs `make lint`, `make test`,
+  `make test-docs` (link check of `docs/guides/`, `scripts/check_guides_links.sh`),
   `make test-image` (build the image, then start Vault `--privileged` with a tiny compose file,
   `curl` the exposed port, stop it) and then `make test-cli-e2e` (drive the bundled CLI
   `up` / `status` / `compose ps` / `down` against that image, then `install.sh` from it).
@@ -141,7 +145,8 @@ Modelled after the `navi` project:
   logic lives in `scripts/*.sh`, and CI-only wrappers (`docker login`, buildx/QEMU setup,
   fetching `docker_hub.sh`) live in `scripts/ci/`.
 - Makefile targets: `bundle-cli` (`build/vault`), `build-image` (runs `bundle-cli` first),
-  `lint` (shellcheck), `test` (bats, including bash 3.2 and `zsh -n`), `test-image`,
+  `lint` (shellcheck), `test` (bats, including bash 3.2 and `zsh -n`), `test-docs` (link
+  check of `docs/guides/`, run on the host), `test-image`,
   `test-cli-e2e` (after `test-image` in CI),
   `bump-version VERSION=X.Y.Z`, `check-version-tag TAG=X.Y.Z`, `release TAG=x` (fails fast
   without `TAG`), `github-release TAG=X.Y.Z` (fails fast without `TAG`), `update-description`,
