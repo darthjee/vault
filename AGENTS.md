@@ -72,13 +72,19 @@ A SIGTERM / SIGINT trap is installed first, so a signal at any point runs the sh
 Modelled after the `navi` project:
 
 - Release jobs only run on `X.Y.Z` tags (`branches: ignore: /.*/`).
-- Chain: `check-version-tag` + `build-and-test` → `build-and-release` → `update-description`.
+- Chain: `check-version-tag` + `build-and-test` → `build-and-release` → `update-description`
+  and `github-release` (in parallel).
 - `check-version-tag`: tag must match the `VERSION` file and the README `**Current Version:**`
   line; `scripts/bump_version.sh X.Y.Z` updates both.
 - `build-and-release`: `make ci-release-setup` (buildx/QEMU setup + `docker login`), then
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
 - `update-description`: pushes `DOCKERHUB_DESCRIPTION.md` via `darthjee/scripts`' `docker_hub.sh`.
+- `github-release`: `make github-release TAG=$CIRCLE_TAG` (`scripts/github_release.sh`) — builds
+  the CLI bundle, creates a published GitHub release marked Latest with generated notes (or keeps
+  an existing one), and uploads `vault`, `install.sh`, `vault.bash`, `_vault` and `SHA256SUMS`
+  with `--clobber`, using the `gh` CLI from the machine image. A failure never rolls back the
+  Docker image; the job can be re-run.
 - On PRs / branches: the `build-and-test` job runs `make lint`, `make test`,
   `make test-image` (build the image, then start Vault `--privileged` with a tiny compose file,
   `curl` the exposed port, stop it) and then `make test-cli-e2e` (drive the bundled CLI
@@ -86,14 +92,17 @@ Modelled after the `navi` project:
   Docker jobs use the `machine: image: ubuntu-2404:current` executor (the bare `machine: true` form is deprecated).
 - Credentials: `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD`, stored in the restricted
   CircleCI context `docker-hub` (not project env vars) and attached only to the release jobs
-  `build-and-release` and `update-description`. PR jobs never receive them.
+  `build-and-release` and `update-description`. `GITHUB_TOKEN` (passed to `gh` as `GH_TOKEN`)
+  lives in the restricted context `github`, attached only to `github-release`. PR jobs never
+  receive any of them.
 - CircleCI YAML only sets up executors, contexts and filters and calls make targets; any
   logic lives in `scripts/*.sh`, and CI-only wrappers (`docker login`, buildx/QEMU setup,
   fetching `docker_hub.sh`) live in `scripts/ci/`.
 - Makefile targets: `build-image`, `lint` (shellcheck), `test` (bats), `test-image`,
   `test-cli-e2e` (after `test-image` in CI),
   `bump-version VERSION=X.Y.Z`, `check-version-tag TAG=X.Y.Z`, `release TAG=x` (fails fast
-  without `TAG`), `update-description`, `ci-release-setup` (CI-only).
+  without `TAG`), `github-release TAG=X.Y.Z` (fails fast without `TAG`), `update-description`,
+  `ci-release-setup` (CI-only).
   Variables: `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `IMAGE`, `DOCKER_VERSION` (build arg for the
   pinned `docker:<version>-dind` base).
 
@@ -152,5 +161,5 @@ Specialist sub-agents live in [`.claude/agents/`](.claude/agents/):
 | `architect` | Coordinator: root-level files (except `install.sh`), `.github/`, `.claude/`, cross-cutting decisions; fallback for `docs/agents/` |
 | `product-owner` | `docs/agents/` (incl. `specs/`) — issue specs, plans, project documentation |
 | `dev` | `Dockerfile`, `source/` (incl. `source/bin/install.sh`), `test/lib/`, `test/fixture/` and the image tests — the image, the entrypoint, the in-image install entry and their tests |
-| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/` — build, release, publishing |
+| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `test/scripts/`, `build/` — build, release, publishing |
 | `cli` | `cli/` (`bin/vault`, `lib/*.sh`, `completion/*`), root `install.sh`, `test/cli/`, `test/install/` — the `vault` CLI and its installer |

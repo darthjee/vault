@@ -19,7 +19,7 @@ You own:
 Do NOT touch the paths below. If you need a change there, report it to their owner:
 
 - `Dockerfile`, `source/` (including `source/bin/install.sh`), `test/lib/`, `test/fixture/` — owned by `dev`
-- `Makefile`, `scripts/`, `.circleci/`, `VERSION`, `test/bash32/`, `build/` — owned by `automation`
+- `Makefile`, `scripts/`, `.circleci/`, `VERSION`, `test/bash32/`, `test/scripts/`, `build/` — owned by `automation`
 - `docs/agents/` (including `docs/agents/specs/`) — owned by `product-owner`
 - Other root-level files (`README.md`, `AGENTS.md`, …), `.github/`, `.claude/` — owned by `architect`
 

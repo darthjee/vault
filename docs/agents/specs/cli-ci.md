@@ -47,9 +47,16 @@ build-and-test ────┘                      └─> github-release   (ne
   [released assets](#released-assets). It builds the bundle itself.
 - **Credentials:** env var `GITHUB_TOKEN`, from the new restricted CircleCI context `github`,
   attached **only** to this job.
-- **Failure:** a failing `github-release` never unpublishes or rolls back the Docker image. The
-  job can be re-run (behaviour on an existing release: open point 9, settled by #28).
-- Executor and tooling (`gh`, `curl`) are left to #28.
+- **Release mode:** published (not a draft), marked Latest (`--latest`), with generated notes
+  (`--generate-notes`), title = tag, on the existing tag. Repository `darthjee/vault`
+  (overridable with `GITHUB_REPOSITORY`, for tests).
+- **Executor and tooling:** CircleCI machine executor (`ubuntu-2404:current`), using the `gh` CLI
+  shipped on the image (no pinned image). `GITHUB_TOKEN` is exported to `gh` as `GH_TOKEN`; a
+  missing token fails with exit 1 and a clear message.
+- **Failure:** a failing `github-release` never unpublishes or rolls back the Docker image.
+- **Re-run (open point 9, settled by #28):** if `gh release view <tag>` succeeds, creation is
+  skipped (title and notes untouched) and every asset is re-uploaded with
+  `gh release upload --clobber`.
 
 ### Released assets
 

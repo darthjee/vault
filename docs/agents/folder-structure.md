@@ -6,8 +6,8 @@
 |-----------------|-------------|
 | `Dockerfile` | Builds the Vault image (`FROM docker:${DOCKER_VERSION}-dind`, adds bash, installs `source/`, `EXPOSE 80`, `VOLUME /var/lib/docker`, `WORKDIR /vault`). |
 | `source/` | Files installed into the image: `bin/entrypoint.sh` (the only script) and `lib/*.sh` (function libraries). |
-| `test/` | `lib/*.bats` (bats unit tests for `source/lib`) and `fixture/docker-compose.yml` (smoke-test stack). |
-| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh`, `release.sh`, `ci/`. See [scripts/](#scripts). |
+| `test/` | `lib/*.bats` (bats unit tests for `source/lib`), `scripts/*.bats` (bats tests for repo scripts such as `scripts/github_release.sh`, with a stub `gh`; owner `automation`) and `fixture/docker-compose.yml` (smoke-test stack). |
+| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh`, `release.sh`, `github_release.sh`, `ci/`. See [scripts/](#scripts). |
 | `.circleci/` | CI and release pipeline. |
 | `Makefile` | The only entry point for developers and CI. See [Makefile](#makefile). |
 | `VERSION` | Current version; checked against the release tag. |
@@ -31,6 +31,8 @@
   - `docker_login.sh` — `docker login` to Docker Hub.
   - `setup_buildx.sh` — QEMU / buildx setup for multi-platform builds.
   - `update_description.sh` — fetches `docker_hub.sh` (pinned) and pushes `DOCKERHUB_DESCRIPTION.md`.
+- Release scripts: `release.sh` (multi-arch build and push), `github_release.sh` (GitHub release of the
+  CLI assets with `gh`).
 - Test scripts: `test.sh` (bats), `test_image.sh` (smoke test), `test_cli_e2e.sh` (CLI end-to-end test).
 - Everything under `scripts/` is shellchecked by `make lint`.
 
@@ -46,6 +48,7 @@
 | `bump-version VERSION=X.Y.Z` | Updates `VERSION` and the README version line (`scripts/bump_version.sh`). |
 | `check-version-tag TAG=X.Y.Z` | Fails unless the tag matches `VERSION` and the README (`scripts/check_tag_version.sh`). |
 | `release TAG=x` | Multi-arch build and push (`scripts/release.sh`). |
+| `github-release TAG=X.Y.Z` | Builds the CLI bundle and `SHA256SUMS`, creates (or reuses) the GitHub release and uploads the assets (`scripts/github_release.sh`). Fails fast without `TAG`. |
 | `update-description` | Pushes `DOCKERHUB_DESCRIPTION.md` to Docker Hub (`scripts/ci/update_description.sh`). |
 | `ci-release-setup` | CI-only: buildx setup and Docker Hub login. |
 

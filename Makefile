@@ -9,7 +9,7 @@ PUSH ?= true
 
 export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release require-tag ci-release-setup
+.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup
 
 lint:
 	scripts/lint.sh
@@ -42,8 +42,13 @@ update-description:
 release: require-tag bundle-cli
 	scripts/release.sh $(TAG)
 
+# require-tag first so a missing TAG fails before any build work.
+# The script builds the CLI bundle itself.
+github-release: require-tag
+	scripts/github_release.sh $(TAG)
+
 require-tag:
-	$(if $(TAG),@true,$(error TAG is required, e.g. make release TAG=X.Y.Z))
+	$(if $(TAG),@true,$(error TAG is required, e.g. make $(or $(firstword $(MAKECMDGOALS)),release) TAG=X.Y.Z))
 
 ci-release-setup:
 	scripts/ci/setup_buildx.sh
