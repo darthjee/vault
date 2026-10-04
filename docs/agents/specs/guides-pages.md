@@ -61,9 +61,11 @@ every page under `docs/guides/`.
 - Sysbox (`--runtime=sysbox-runc`, recommended) vs. `--privileged` (fallback, link to
   `security.md`).
 - Mounting the project at `/vault`; the data volume on `/var/lib/docker`.
-- Ports (`-p 8080:80`), env vars (`-e`, link to `configuration.md`).
+- Ports (`-p 8080:80`), env vars (`-e`, `--env-file`, link to `configuration.md`).
 - Compose passthrough arguments: no arguments → `docker compose up ${COMPOSE_UP_ARGS}`;
   arguments → `docker compose "$@"` (`config`, `ps`, `up --build`).
+- Stopping: one short stop-timeout example (`docker stop -t`, `--stop-timeout`), pointing to
+  `operations.md` for the full shutdown sequence (stop timeouts are owned by #45).
 
 ## `cli.md`
 
