@@ -51,7 +51,7 @@ runtime_probe() {
 runtime_check_rootless() {
   if [ "$RUNTIME_ROOTLESS" = 1 ]; then
     output_error 'rootless Docker is not supported'
-    output_hint 'see "Supported runtimes" in the README'
+    output_hint 'see Security in the README'
     return 1
   fi
   return 0
