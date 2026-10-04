@@ -321,14 +321,52 @@ The `vault: ` prefix is omitted; "+" marks a hint line. Tests assert this wordin
 
 ## Shell completion
 
-Owned by #25; internals are left to it.
+Settled by #25.
 
-- `cli/completion/vault.bash` (bash 3.2 compatible) and `cli/completion/_vault` (zsh) complete:
-  - the subcommands;
-  - the options of each subcommand, including the `--runtime` values `auto`, `sysbox`,
-    `privileged`;
-  - directories for `[dir]`.
-- Install locations: [cli-install.md](cli-install.md).
+### Files
+
+| File | Shell | Notes |
+|------|-------|-------|
+| `cli/completion/vault.bash` | bash 3.2+ | Mode `0644`, not executable, not bundled into `build/vault`. |
+| `cli/completion/_vault` | zsh | Mode `0644`, not executable, not bundled into `build/vault`. |
+
+Install locations: [cli-install.md](cli-install.md).
+
+### bash entry point
+
+- Sourcing `vault.bash` only defines functions and runs `complete -F _vault_complete vault`.
+- `_vault_complete` reads `COMP_WORDS` / `COMP_CWORD` and fills `COMPREPLY`. Tests call it
+  directly.
+- bash 3.2 constraints: no associative arrays, no `mapfile` / `readarray`, no `${var,,}` /
+  `${var^^}`, no `compopt`; the bats suite runs on `BASH32_TEST_IMAGE` too.
+
+### What is completed
+
+- Position 1: the subcommands.
+- After a subcommand: its options (both shells, from `_args_key` in `cli/lib/args.sh`):
+
+  | Command | Options |
+  |---------|---------|
+  | `up` | `--name --image --runtime -p --port -v --volume -e --env --env-file --stop-timeout -f --attach -h --help` |
+  | `run` | `--name --image --runtime -p --port -v --volume -e --env --env-file --stop-timeout -h --help` |
+  | `down` | `--name --image --stop-timeout -h --help` |
+  | `logs` | `--name --image -f --follow -h --help` |
+  | `status`, `compose` | `--name --image -h --help` |
+  | `version`, `help` | none |
+
+- Option values:
+
+  | Option | Completes |
+  |--------|-----------|
+  | `--runtime` | `auto sysbox privileged`, both as `--runtime <TAB>` and `--runtime=<TAB>`. |
+  | `--env-file` | Files. |
+  | `-v`, `--volume` | Files and directories. |
+  | `--name` | Instance names from `docker ps -a --filter name=^vault- --format '{{.Names}}'`, without the `vault-` prefix. If `docker` is missing or fails, nothing is offered and nothing goes to stderr. |
+  | `--image`, `-p`/`--port`, `-e`/`--env`, `--stop-timeout` | Nothing. |
+
+- `[dir]`: directories.
+- Nothing is completed for `compose` / `run` passthrough arguments (after `[dir]` or `--`), nor
+  after `version` / `help`.
 
 ## Notes for the README
 

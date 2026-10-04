@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # Usage: [BATS_IMAGE=bats/bats:1.14.0] [BASH32_TEST_IMAGE=vault-bash32-test:local] \
-#          scripts/test.sh
+#          [ZSH_IMAGE=zshusers/zsh:5.9] scripts/test.sh
 # Runs the bats unit tests (in Docker):
 #   1. builds the CLI bundle build/vault (scripts/bundle_cli.sh) when cli/ exists;
 #   2. runs test/lib/, test/cli/ and test/install/ on $BATS_IMAGE;
 #   3. builds $BASH32_TEST_IMAGE from test/bash32/ and runs test/cli/ and
-#      test/install/ on it (bash 3.2).
+#      test/install/ on it (bash 3.2);
+#   4. checks the syntax of cli/completion/_vault with `zsh -n` on $ZSH_IMAGE,
+#      when the file exists.
 # Only directories holding *.bats files are run. Exits non-zero if any run fails.
 set -euo pipefail
 
 BATS_IMAGE="${BATS_IMAGE:-bats/bats:1.14.0}"
 BASH32_TEST_IMAGE="${BASH32_TEST_IMAGE:-vault-bash32-test:local}"
+ZSH_IMAGE="${ZSH_IMAGE:-zshusers/zsh:5.9}"
+ZSH_COMPLETION="cli/completion/_vault"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -30,6 +34,13 @@ run_bats() {
   shift
   echo "bats ($image): $*"
   docker run --rm -v "$PWD:/code:ro" -w /code "$image" --recursive "$@"
+}
+
+# Checks the zsh completion script's syntax with `zsh -n` on $ZSH_IMAGE.
+run_zsh_check() {
+  local file="$1"
+  echo "zsh -n ($ZSH_IMAGE): $file"
+  docker run --rm -v "$PWD:/code:ro" -w /code "$ZSH_IMAGE" zsh -n "$file"
 }
 
 main() {
@@ -65,6 +76,10 @@ main() {
       echo "failed to build $BASH32_TEST_IMAGE" >&2
       status=1
     fi
+  fi
+
+  if [ -f "$ZSH_COMPLETION" ]; then
+    run_zsh_check "$ZSH_COMPLETION" || status=1
   fi
 
   exit "$status"
