@@ -3,13 +3,17 @@
 **Vault** is a Docker image that runs a Docker daemon inside itself (Docker-in-Docker)
 and starts a `docker compose` stack on boot. Other projects use it to ship a
 stand-alone application: the application, its database and any other dependency
-run inside a single Vault container that exposes one port.
+run inside a single Vault container that exposes one port. A host-side `vault` CLI
+(bash 3.2+, Linux and macOS) builds the `docker run` for the user.
 
 ## Stack
 
 - Docker-in-Docker, based on a pinned `docker:<version>-dind` image (Alpine)
 - `docker compose` (plugin bundled in the base image)
 - Bash for the entrypoint and scripts (`bash` is installed via `apk`); linted with `shellcheck`, unit-tested with `bats-core`
+- Bash 3.2+ for the `vault` CLI (`cli/`) and its installer (`install.sh`); their tests also run
+  on a bash 3.2 test image (`test/bash32/`), and the zsh completion is syntax-checked with
+  `zsh -n` on `ZSH_IMAGE`
 - Make for build / lint / test / release targets
 - CircleCI for CI and releases; images published to Docker Hub as `darthjee/vault`
 
@@ -67,6 +71,43 @@ A SIGTERM / SIGINT trap is installed first, so a signal at any point runs the sh
   risks of `--privileged` (host escape, device access, no seccomp/AppArmor, unusable on
   most managed platforms). Never expose the inner Docker socket over TCP.
 
+### CLI
+
+The `vault` CLI is a host-side client: it builds the `docker run` of a Vault image for the
+user. Details: [Architecture](docs/agents/architecture.md) and [Flow](docs/agents/flow.md);
+user docs: the README `## CLI` section.
+
+- **Source and packaging:** `cli/bin/vault` (entry point; the only script that reads the
+  environment, `PWD`, `DOCKER_HOST` and `.vaultrc`) plus `cli/lib/*.sh` (function libraries),
+  bundled into the single file `build/vault` by `scripts/bundle_cli.sh` (`make bundle-cli`).
+  The image ships it as `/usr/local/bin/vault`, with the completions
+  (`cli/completion/vault.bash`, `_vault`) in `/usr/local/share/vault/completion/`.
+- **Commands:** `up` (detached unless `-f`), `down` (keeps the data volume), `logs`,
+  `status`, `compose` (`docker exec ... docker compose`), `run` (one-shot `docker run --rm`,
+  refused while the instance runs), `version`, `help`.
+- **Instance identity:** a name (`--name`, else `.vaultrc` `name=`, else the image name with
+  `--image` and no `[dir]`, else the sanitized basename of `[dir]` / `$PWD`) gives the
+  container `vault-<name>` and the data volume `vault-<name>-data` on `/var/lib/docker`.
+- **Runtime selection** (`up`, `run`): `--runtime auto|sysbox|privileged`, default `auto`.
+  `auto` uses `--runtime=sysbox-runc` when `docker info` lists it, else `--privileged` with a
+  warning. A forced `sysbox` without Sysbox fails; a failed Sysbox run never escalates to
+  `--privileged`. Rootless Docker is refused.
+- **Guardrails** (exit 2, flags and `.vaultrc` alike): no mount of the host Docker socket, no
+  published container port 2375 / 2376.
+- **Configuration:** flags > `.vaultrc` > built-in defaults; a repeatable flag replaces every
+  `.vaultrc` entry of its key. `.vaultrc` (in `[dir]`, else `$PWD`) is parsed, **never
+  sourced**. `.vault.env` is passed as the first `--env-file` of `up` / `run`.
+- **Privilege model:** runs as the current user, never calls `sudo`, writes nothing on the
+  host. Only `install.sh` writes (the install and completion dirs).
+- **Distribution:** `install.sh` (`curl | bash`) runs
+  `docker run --user "$(id -u):$(id -g)" --entrypoint vault-install` (the image's
+  `source/bin/install.sh`, no root, no `--privileged`) on a staging dir, then moves the CLI
+  to `~/.local/bin/vault` and the completions to `~/.local/share/vault/completion/`.
+  `vault-install` is an image entry, not a `vault` subcommand. GitHub releases carry
+  `vault`, `install.sh`, `vault.bash`, `_vault` and `SHA256SUMS`.
+- **Versioning:** `cli/bin/vault` and `install.sh` each hold one `VAULT_VERSION="X.Y.Z"`
+  line, stamped by `scripts/bump_version.sh` and checked by `scripts/check_tag_version.sh`.
+
 ### Release (CircleCI)
 
 Modelled after the `navi` project:
@@ -74,8 +115,9 @@ Modelled after the `navi` project:
 - Release jobs only run on `X.Y.Z` tags (`branches: ignore: /.*/`).
 - Chain: `check-version-tag` + `build-and-test` → `build-and-release` → `update-description`
   and `github-release` (in parallel).
-- `check-version-tag`: tag must match the `VERSION` file and the README `**Current Version:**`
-  line; `scripts/bump_version.sh X.Y.Z` updates both.
+- `check-version-tag`: tag must match the `VERSION` file, the README `**Current Version:**`
+  line and the `VAULT_VERSION="X.Y.Z"` lines of `cli/bin/vault` and `install.sh`;
+  `scripts/bump_version.sh X.Y.Z` updates all of them.
 - `build-and-release`: `make ci-release-setup` (buildx/QEMU setup + `docker login`), then
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
@@ -98,23 +140,30 @@ Modelled after the `navi` project:
 - CircleCI YAML only sets up executors, contexts and filters and calls make targets; any
   logic lives in `scripts/*.sh`, and CI-only wrappers (`docker login`, buildx/QEMU setup,
   fetching `docker_hub.sh`) live in `scripts/ci/`.
-- Makefile targets: `build-image`, `lint` (shellcheck), `test` (bats), `test-image`,
+- Makefile targets: `bundle-cli` (`build/vault`), `build-image` (runs `bundle-cli` first),
+  `lint` (shellcheck), `test` (bats, including bash 3.2 and `zsh -n`), `test-image`,
   `test-cli-e2e` (after `test-image` in CI),
   `bump-version VERSION=X.Y.Z`, `check-version-tag TAG=X.Y.Z`, `release TAG=x` (fails fast
   without `TAG`), `github-release TAG=X.Y.Z` (fails fast without `TAG`), `update-description`,
   `ci-release-setup` (CI-only).
-  Variables: `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `IMAGE`, `DOCKER_VERSION` (build arg for the
-  pinned `docker:<version>-dind` base).
+  Variables: `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `BASH32_TEST_IMAGE`, `ZSH_IMAGE`, `IMAGE`,
+  `SMOKE_TIMEOUT`, `RELEASE_IMAGE`, `PUSH`, `DOCKER_VERSION` (build arg for the pinned
+  `docker:<version>-dind` base).
 
 ### Future work
 
-- **CLI** to run Vault containers: handles volume mounting, and detects Sysbox
-  (`docker info --format '{{json .Runtimes}}'` lists `sysbox-runc`) — uses
-  `--runtime=sysbox-runc` when available, otherwise falls back to `--privileged` with a
-  visible warning; a flag (e.g. `--runtime=sysbox|privileged`) forces either mode.
 - **Vulnerability scanning** of the published image.
 - **Sysbox in CI:** CI smoke-tests only `--privileged` today.
 - **Renovate / Dependabot** for the pinned images (`docker:*-dind`, shellcheck, bats).
+- **CLI:**
+  - `vault up --wait` (wait for the inner stack to be ready);
+  - a Homebrew tap;
+  - Windows support;
+  - `vault build` / `vault pack` (bake a stack into a derived image);
+  - self-update and uninstall;
+  - `vault ls` (list instances);
+  - remote Docker hosts (`DOCKER_HOST`, contexts);
+  - coloured output.
 
 ## Documentation
 
