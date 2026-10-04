@@ -3,7 +3,9 @@
 #          [ZSH_IMAGE=zshusers/zsh:5.9] scripts/test.sh
 # Runs the bats unit tests (in Docker):
 #   1. builds the CLI bundle build/vault (scripts/bundle_cli.sh) when cli/ exists;
-#   2. runs test/lib/, test/cli/ and test/install/ on $BATS_IMAGE;
+#   2. runs test/lib/, test/cli/, test/install/ and test/scripts/ on
+#      $BATS_IMAGE (test/scripts/ covers scripts/*.sh, which CI runs on its
+#      ubuntu machine executor, so it is not run on bash 3.2);
 #   3. builds $BASH32_TEST_IMAGE from test/bash32/ and runs test/cli/ and
 #      test/install/ on it (bash 3.2);
 #   4. checks the syntax of cli/completion/_vault with `zsh -n` on $ZSH_IMAGE,
@@ -51,14 +53,14 @@ main() {
 
   while IFS= read -r dir; do
     suites+=("$dir")
-  done < <(suites_in test/lib test/cli test/install)
+  done < <(suites_in test/lib test/cli test/install test/scripts)
 
   while IFS= read -r dir; do
     bash32_suites+=("$dir")
   done < <(suites_in test/cli test/install)
 
   if [ "${#suites[@]}" -eq 0 ]; then
-    echo "no tests found in test/lib/, test/cli/ or test/install/"
+    echo "no tests found in test/lib/, test/cli/, test/install/ or test/scripts/"
     exit 0
   fi
 
