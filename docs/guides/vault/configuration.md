@@ -38,8 +38,9 @@ usual.
 ### `VAULT_DOCKERD_TIMEOUT`
 
 - Vault polls the inner daemon once per second, up to this many times, before giving up.
-- Raise it on slow hosts where `dockerd` takes longer than 30 seconds to start.
-- It must be a positive integer (`1`, `30`, `120`). Anything else (`0`, `-5`, `30s`, empty)
+- Unset or empty, it defaults to `30`. Raise it on slow hosts where `dockerd` takes longer
+  than 30 seconds to start.
+- It must be a positive integer (`1`, `30`, `120`). Anything else (`0`, `-5`, `30s`)
   stops the container at startup with exit code `1` and
   `VAULT_DOCKERD_TIMEOUT must be a positive integer, got: '<value>'`. See
   `troubleshooting.md` for every startup error.
