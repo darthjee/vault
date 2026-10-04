@@ -152,7 +152,7 @@ blocks #21.
 | 5 | How commands that skip `docker info` (`down`, `logs`, `status`, `compose`) tell a missing instance from an unreachable daemon. | **Settled:** one `docker inspect --format '{{.State.Running}}' vault-<name>`; a non-zero exit whose stderr contains `No such object` or `no such object` → missing instance; any other non-zero exit → `cannot reach the Docker daemon`. | #24 (settled) |
 | 6 | How a failed `docker run` is attributed to Sysbox vs. a busy port. | **Settled:** docker's stderr mentioning `port is already allocated` / `address already in use` → port hint; any other start failure under `sysbox-runc` → Sysbox hint; under `--privileged` → docker's error only. For passthrough commands (`run`, `up -f`), only exit codes 125–127 are classified. | #24 (settled) |
 | 7 | Whether `test/lib/` (the in-image entrypoint tests) also runs under bash 3.2. | **Settled: No.** Only `test/cli/` and `test/install/` run under bash 3.2; `test/lib/` runs on `BATS_IMAGE` only (the image's own bash is current). | #22 (settled) |
-| 8 | Which image runs the `zsh -n` syntax check of `_vault`. | A pinned zsh image, called from `make test`. | #25 (with `automation`) |
+| 8 | Which image runs the `zsh -n` syntax check of `_vault`. | **Settled:** `ZSH_IMAGE` (default `zshusers/zsh:5.9`) runs `zsh -n cli/completion/_vault` from `scripts/test.sh`, as part of `make test`, when the file exists. | #25 (settled) |
 | 9 | `github-release` behaviour when the release already exists (job re-run). | Re-upload the assets, replacing existing ones. | #28 |
 | 10 | Whether `install.sh`'s staging dir needs to avoid `$TMPDIR` for Docker Desktop shared paths. | Use `mktemp -d` (Docker Desktop shares `/tmp` and `/var/folders` by default). | #26 |
 

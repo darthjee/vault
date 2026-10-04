@@ -100,7 +100,7 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 | `make lint` (shellcheck `-x`) | `*.sh` / `*.bats` under `source/`, `scripts/`, `cli/` and `test/` (so `cli/lib/*.sh`, `test/cli/`, `test/install/`), plus, by path when they exist, `cli/bin/vault`, `cli/completion/vault.bash`, `install.sh`. |
 | `make test` on `BATS_IMAGE` | `test/lib/`, `test/cli/`, `test/install/`. |
 | `make test` on `BASH32_TEST_IMAGE` | `test/cli/`, `test/install/` (whichever have `.bats` files). `test/lib/` is not run on bash 3.2 (open point 7, settled by #22). |
-| zsh syntax | `zsh -n cli/completion/_vault` (runner chosen by #25; open point 8). |
+| `make test` on `ZSH_IMAGE` (default `zshusers/zsh:5.9`) | `zsh -n cli/completion/_vault`, run from `scripts/test.sh` when the file exists (open point 8, settled by #25). |
 
 ## Testing strategy
 
