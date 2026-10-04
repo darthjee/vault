@@ -2,7 +2,7 @@
 # Usage: scripts/check_tag_version.sh X.Y.Z
 # Fails when the tag does not match the VERSION file, the README
 # "**Current Version:**" line, or the VAULT_VERSION="X.Y.Z" line of
-# cli/bin/vault and install.sh (when it exists). A missing or duplicated
+# cli/bin/vault and install.sh. A missing file or a missing or duplicated
 # VAULT_VERSION line fails.
 set -euo pipefail
 
@@ -74,16 +74,10 @@ check_vault_version() {
 }
 
 check_vault_version "$CLI_FILE"
-if [ -f "$INSTALL_FILE" ]; then
-  check_vault_version "$INSTALL_FILE"
-fi
+check_vault_version "$INSTALL_FILE"
 
 if [ "$status" -eq 0 ]; then
-  if [ -f "$INSTALL_FILE" ]; then
-    echo "Tag $tag matches VERSION, README.md, cli/bin/vault and install.sh"
-  else
-    echo "Tag $tag matches VERSION, README.md and cli/bin/vault"
-  fi
+  echo "Tag $tag matches VERSION, README.md, cli/bin/vault and install.sh"
 fi
 
 exit "$status"

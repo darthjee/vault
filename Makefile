@@ -9,7 +9,7 @@ PUSH ?= true
 
 export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image update-description release ci-release-setup
+.PHONY: lint test bundle-cli bump-version check-version-tag build-image test-image update-description release require-tag ci-release-setup
 
 lint:
 	scripts/lint.sh
@@ -26,7 +26,7 @@ bump-version:
 check-version-tag:
 	$(if $(TAG),scripts/check_tag_version.sh $(TAG),$(error TAG is required, e.g. make check-version-tag TAG=X.Y.Z))
 
-build-image:
+build-image: bundle-cli
 	docker build $(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) -t $(IMAGE) .
 
 test-image: build-image
@@ -35,8 +35,12 @@ test-image: build-image
 update-description:
 	scripts/ci/update_description.sh
 
-release:
-	$(if $(TAG),scripts/release.sh $(TAG),$(error TAG is required, e.g. make release TAG=X.Y.Z))
+# require-tag is listed before bundle-cli so a missing TAG fails before any build work.
+release: require-tag bundle-cli
+	scripts/release.sh $(TAG)
+
+require-tag:
+	$(if $(TAG),@true,$(error TAG is required, e.g. make release TAG=X.Y.Z))
 
 ci-release-setup:
 	scripts/ci/setup_buildx.sh

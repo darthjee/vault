@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Usage: IMAGE=darthjee/vault:dev [SMOKE_TIMEOUT=120] scripts/test_image.sh
-# Smoke-tests a built Vault image: runs it (--privileged) with the
-# test/fixture compose stack on a random localhost port, waits for HTTP 200
+# Checks a built Vault image. First, without --privileged: `vault version`
+# prints "vault $(cat VERSION)", and the vault-install entry, run as the host
+# user with a temp dir bound to /install, exits 0 silently and leaves vault
+# (executable), completion/vault.bash and completion/_vault there.
+# Then smoke-tests it: runs it (--privileged) with the test/fixture compose stack on a random localhost port, waits for HTTP 200
 # on /, asserts nothing listens on 2375, stops it and expects exit code 0.
-# The container (and its anonymous volume) is always removed.
+# The container (and its anonymous volume) and the temp dir are always removed.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,12 +16,14 @@ IMAGE="${IMAGE:-}"
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-120}"
 NAME="vault-smoke-$$"
 FIXTURE_DIR="$PWD/test/fixture"
+INSTALL_DIR=""
 
 main() {
   local port
 
   validate_inputs
   trap _cleanup EXIT
+  assert_cli_shipped
   start_container
   port="$(host_port)"
   wait_for_http "$port"
@@ -40,6 +45,29 @@ validate_inputs() {
     echo "test-image: fixture not found: test/fixture/docker-compose.yml" >&2
     exit 1
   fi
+}
+
+assert_cli_shipped() {
+  local expected output file
+
+  expected="vault $(tr -d '[:space:]' < VERSION)"
+  output="$(docker run --rm --entrypoint vault "$IMAGE" version)" || fail "vault version"
+  if [ "$output" != "$expected" ]; then
+    fail "vault version printed '$output' (expected '$expected')"
+  fi
+
+  INSTALL_DIR="$(mktemp -d)"
+  output="$(docker run --rm --user "$(id -u):$(id -g)" --entrypoint vault-install \
+    -v "$INSTALL_DIR:/install" "$IMAGE" 2>&1)" || fail "vault-install exited non-zero: $output"
+  if [ -n "$output" ]; then
+    fail "vault-install printed output (expected none): $output"
+  fi
+  [ -x "$INSTALL_DIR/vault" ] || fail "vault-install did not leave an executable vault"
+  for file in completion/vault.bash completion/_vault; do
+    [ -f "$INSTALL_DIR/$file" ] || fail "vault-install did not leave $file"
+  done
+
+  echo "test-image: CLI shipped"
 }
 
 start_container() {
@@ -107,6 +135,9 @@ _running() {
 
 _cleanup() {
   docker rm -fv "$NAME" >/dev/null 2>&1 || true
+  if [ -n "$INSTALL_DIR" ]; then
+    rm -rf "$INSTALL_DIR"
+  fi
 }
 
 main "$@"
