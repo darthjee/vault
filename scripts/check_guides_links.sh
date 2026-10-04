@@ -103,6 +103,7 @@ parse_markdown() {
         }
       }
 
+      gsub(/``[^`]+``/, "", line)
       gsub(/`[^`]*`/, "", line)
 
       if (line ~ /^ ? ? ?\[[^]]+\]:([ \t]|$)/) {
