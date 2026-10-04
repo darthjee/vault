@@ -53,6 +53,14 @@ jobs:
           name: Push Docker Hub description
           command: make update-description
 
+  github-release:
+    executor: machine
+    steps:
+      - checkout
+      - run:
+          name: Create GitHub release and upload CLI assets
+          command: make github-release TAG="$CIRCLE_TAG"
+
 workflows:
   build-and-test:
     jobs:
@@ -76,6 +84,11 @@ workflows:
           filters: *release-filters
       - update-description:
           context: docker-hub
+          requires:
+            - build-and-release
+          filters: *release-filters
+      - github-release:
+          context: github
           requires:
             - build-and-release
           filters: *release-filters
