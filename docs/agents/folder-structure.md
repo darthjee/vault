@@ -17,6 +17,7 @@
 | `DOCKERHUB_DESCRIPTION.md` | Docker Hub page content. |
 | `README.md`, `AGENTS.md`, `LICENSE` | User documentation, project instructions for agents, license. |
 | `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and temporary per-epic specs (`specs/`, see [specs.md](specs.md)). |
+| `docs/guides/` | Portable user guides (`vault.md` + `vault/*.md`), copied by hand into consumer repos. Owner `product-owner`. Does not exist yet; #42 creates it (see the [guides spec](specs/guides-overview.md)). |
 | `.github/` | PR template, commit message template, Copilot pointer. |
 | `.claude/` | Claude agents, check scripts and configuration. |
 
