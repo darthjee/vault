@@ -54,7 +54,7 @@ host's Docker daemon to the inner stack. Vault always runs its own inner daemon.
 - Never bake secrets into a derived image: anyone who can pull the image can read them.
 - Pass secrets at run time instead (`-e`, `--env-file`).
 
-Details are in `vault/configuration.md` (not written yet).
+Details are in [configuration.md → Secrets handling](configuration.md#secrets-handling).
 
 ## Supported runtimes and platforms
 

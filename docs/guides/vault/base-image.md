@@ -126,5 +126,5 @@ docker run --runtime=sysbox-runc \
   my-app
 ```
 
-Secrets handling is detailed in `configuration.md` (not written yet); see also
+Secrets handling is detailed in [configuration.md → Secrets handling](configuration.md#secrets-handling); see also
 [security.md → Secrets](security.md#secrets).

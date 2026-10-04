@@ -93,7 +93,7 @@ docker run --runtime=sysbox-runc \
 ```
 
 - The full list of variables (`COMPOSE_FILE`, `COMPOSE_UP_ARGS`, `VAULT_DOCKERD_TIMEOUT`, ...)
-  lives in `configuration.md` (not written yet).
+  lives in [configuration.md](configuration.md#environment-variables).
 - Keep env files that hold secrets out of git. See [security.md → Secrets](security.md#secrets).
 
 ## Compose arguments
@@ -149,7 +149,7 @@ or when stopping:
 docker stop -t 60 <container>
 ```
 
-The full shutdown sequence lives in `operations.md` (not written yet).
+The full shutdown sequence lives in [operations.md → Shutdown](operations.md#shutdown).
 
 ## The CLI alternative
 
