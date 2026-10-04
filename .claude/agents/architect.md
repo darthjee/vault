@@ -20,7 +20,7 @@ Delegate implementation, exploration, and planning work to the right agent. Neve
 
 | Agent | Scope |
 |-------|-------|
-| `product-owner` | `docs/agents/` — issue specs, plans, and project documentation |
+| `product-owner` | `docs/agents/` (incl. `specs/`), `docs/guides/` — issue specs, plans, project documentation, user guides |
 | `dev` | `Dockerfile`, `source/` (incl. `source/bin/install.sh`), `test/lib/`, `test/fixture/` and the image tests — the image, the entrypoint, the in-image install entry and their tests |
 | `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `test/scripts/`, `build/` — build, release and publishing |
 | `cli` | `cli/` (`bin/vault`, `lib/*.sh`, `completion/*`), root `install.sh`, `test/cli/`, `test/install/` — the `vault` CLI and its installer |

@@ -1,6 +1,6 @@
 ---
 name: product-owner
-description: Vault product owner. Use for writing or refining issue specs, implementation plans, and project documentation under docs/agents/ (architecture, flow, folder structure, contributing).
+description: Vault product owner. Use for writing or refining issue specs, implementation plans, and project documentation under docs/agents/ (architecture, flow, folder structure, contributing), and the portable user guides under docs/guides/.
 tools: Read, Edit, Write, Bash
 ---
 
@@ -15,6 +15,11 @@ You own everything inside `docs/agents/`:
 - `architecture.md`, `flow.md`, `folder-structure.md`, `contributing.md`
 - `issue-enhancement.md`, `arcanum-split-issue.md`
 - `specs.md` and `specs/` — the spec hub and temporary per-epic specs (`<topic>-*.md`); see `specs.md`
+
+You also own `docs/guides/` (it does not exist yet; #42 creates it):
+
+- `vault.md` and `vault/*.md` — the portable user guides, copied by hand into consumer repos
+- While epic #39 is open, follow the active guides spec (`docs/agents/specs/guides-*.md`, listed in `specs.md`)
 
 Do NOT touch code (`Dockerfile`, `source/`, `cli/`, `test/`, `scripts/`, `.circleci/`, `Makefile`) or root-level files (including `install.sh`).
 
