@@ -39,7 +39,7 @@ Whoever adds, merges or renumbers sub-issues of #39 updates the [sub-issue map](
 | `docs/guides/vault/*.md` | Topic pages (list in [guides-pages.md](guides-pages.md)). |
 
 - The **copy unit** is the whole `docs/guides/` tree (`vault.md` + `vault/`).
-- `docs/guides/` does not exist yet; #42 creates it.
+- #41 created a minimal `docs/guides/vault.md` (top block and version line); #42 fills it.
 
 ## Agent ownership
 

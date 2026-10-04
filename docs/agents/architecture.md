@@ -150,6 +150,8 @@ nothing when docker fails).
 - **Versioning:** `cli/bin/vault` and `install.sh` each hold one `VAULT_VERSION="X.Y.Z"` line,
   updated by `scripts/bump_version.sh` and checked against the tag by
   `scripts/check_tag_version.sh`. The CLI's default image is `darthjee/vault:<VAULT_VERSION>`.
+  `docs/guides/vault.md` holds one `**Vault version:** X.Y.Z` line, bumped and checked by the
+  same scripts.
 
 ## Configuration
 
@@ -183,6 +185,7 @@ See the [README Security section](../../README.md#security) for the risks of `--
 |-------|---------|--------|
 | Lint | `make lint` | shellcheck over every `*.sh` / `*.bats` under `source/`, `scripts/`, `cli/` and `test/`, plus `cli/bin/vault`, `cli/completion/vault.bash` and `install.sh`. |
 | Unit | `make test` | Builds `build/vault`, then bats on `BATS_IMAGE` over `test/lib/` (`source/lib/` functions), `test/cli/` (CLI and completion), `test/install/` (`install.sh`) and `test/scripts/` (repo scripts), with external commands (`docker`, `mount`, `gh`, ...) stubbed; `test/cli/` and `test/install/` again on the bash 3.2 image built from `test/bash32/`; `zsh -n` on `cli/completion/_vault` (`ZSH_IMAGE`). |
+| Docs | `make test-docs` | `scripts/check_guides_links.sh` over every `*.md` under `docs/guides/`, on the host (plain bash, bash 3.2 compatible): relative links stay inside the tree and resolve to existing files and GitHub-style anchors, other links are absolute `https://`; reference-style links and images fail; links in code are ignored. Reports every problem in one run; passes on an empty or missing root. Its own step in the CircleCI `build-and-test` job. |
 | Smoke | `make test-image` | `scripts/test_image.sh` with the fixture `test/fixture/docker-compose.yml`: build the image, run it `--privileged`, `curl` the published port, assert no listener on 2375, `docker stop` and expect exit 0, then always clean up. |
 | End-to-end | `make test-cli-e2e` | `scripts/test_cli_e2e.sh` with the same fixture: run the real bundled `build/vault` `up` / `status` / `compose ps` / `down` against the built image (`--runtime=privileged`, a free localhost port, a unique `e2e-<pid>` name, volume kept after `down`), then run `install.sh` from the local image into a temp `HOME`; cleanup always runs. Last line `test-cli-e2e: OK`. |
 

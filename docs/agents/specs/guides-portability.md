@@ -43,9 +43,9 @@ Added by #41.
 
 | Item | Contract |
 |------|----------|
-| Script | Under `scripts/` (name chosen by #41, e.g. `scripts/check_guides_links.sh`). |
+| Script | `scripts/check_guides_links.sh [ROOT]` (`ROOT` defaults to `docs/guides`). |
 | Make target | `make test-docs`. |
-| CI | CircleCI PR pipeline, job `build-and-test`, alongside `make lint` / `make test`. |
+| CI | CircleCI PR pipeline, its own `make test-docs` step in job `build-and-test`, alongside `make lint` / `make test`. |
 | Scope | Every `*.md` file under `docs/guides/`. |
 
 The check fails on:
@@ -61,8 +61,11 @@ Rules:
 - **Anchor slugs** follow GitHub: lowercase the heading text, drop punctuation except `-` and
   `_`, replace spaces with `-`; duplicate headings get `-1`, `-2`, … suffixes.
 - **Code blocks are ignored:** links inside fenced code blocks and inline code are not checked.
-- The check covers inline links (`[text](target)`); reference-style links follow the same
-  rules if #41 supports them, otherwise the guides do not use them.
+- The check covers inline links (`[text](target)`). Reference-style link definitions
+  (`[ref]: target`) and images (`![alt](...)`) fail the check: guides use inline links only
+  and ship no assets.
+- All problems are reported in one run (`<file>: <message>: <link>` on stderr); an empty or
+  missing root passes.
 - Version line: covered by `check-version-tag` and the bump script tests, not by the link check.
 
 ## Edge cases
