@@ -228,7 +228,7 @@ Common ones:
 
 Each project runs as one named instance. The name is, in order:
 
-1. `--name`, else `name=` in `.vaultrc`;
+1. `--name`, else `name=` in [`.vaultrc`](#vaultrc);
 2. else, with `--image` and no `[dir]`, the image name without registry, path and tag
    (`registry.example.com/team/my-app:1.0` gives `my-app`);
 3. else the basename of `[dir]` (else of the current directory).
@@ -279,3 +279,147 @@ vault up --name app-b -p 3001:80 ~/b/app
   docker's error, then `sysbox-runc failed to start the container` and the hint
   `fix sysbox or use --runtime=privileged`.
 - Rootless Docker is refused, whatever the runtime (`rootless Docker is not supported`).
+
+## Options
+
+| Option | Commands | Default | Meaning |
+|--------|----------|---------|---------|
+| `--name <name>` | all | see [Instances](#instances) | Instance name. |
+| `--image <image>` | all | `darthjee/vault:<CLI version>` | Image to run. On `down`, `logs`, `status` and `compose` it only feeds the name default. |
+| `--runtime <auto\|sysbox\|privileged>` | `up`, `run` | `auto` | See [Runtime](#runtime). |
+| `-p`, `--port <HOST:CONTAINER>` | `up`, `run` | `3000:80` | Published port; repeatable. |
+| `-v`, `--volume <SRC:DST>` | `up`, `run` | none | Extra mount; repeatable. |
+| `-e`, `--env <KEY=VALUE>` | `up`, `run` | none | Env var for the Vault container; repeatable. |
+| `--env-file <file>` | `up`, `run` | none | Env file; repeatable. |
+| `--stop-timeout <seconds>` | `up`, `run`, `down` | `60` | Seconds to wait for the graceful shutdown before docker kills the container (positive integer). |
+| `-f`, `--attach` | `up` | off | Run in the foreground. |
+| `-f`, `--follow` | `logs` | off | Follow the logs. |
+| `-h`, `--help` | all | off | Print the usage. |
+
+- Value options take `--opt value`; long ones also take `--opt=value`.
+- An option not valid for the command is a usage error (`unknown option '<opt>'`, exit `2`).
+- Ports: the default `3000:80` maps host `3000` to Vault's port `80`. Any `-p` replaces it, so
+  repeat `-p` for every port you need:
+
+  ```bash
+  vault up -p 8080:80 -p 8443:443
+  ```
+
+- The image's environment variables (`COMPOSE_UP_ARGS`, `VAULT_DOCKERD_TIMEOUT`,
+  `COMPOSE_FILE`, other `COMPOSE_*`) are passed with `-e` or an env file; the CLI does not
+  interpret them. They are described in `configuration.md` (not written yet).
+
+  ```bash
+  vault up -e COMPOSE_UP_ARGS="--abort-on-container-exit" -p 8080:80
+  ```
+
+- What the stop timeout covers (the shutdown sequence) is described in `operations.md` (not
+  written yet).
+
+## `.vault.env`
+
+When `.vault.env` exists in `[dir]` (else in the current directory), `up` and `run` pass it
+as the first `--env-file`, so explicit env files and `-e` win over it. A `--env-file` flag
+never drops it. The CLI never reads its content; docker does.
+
+```
+# .vault.env
+COMPOSE_UP_ARGS=--abort-on-container-exit
+DATABASE_PASSWORD=change-me
+```
+
+It usually holds secrets: keep it out of git (add `.vault.env` to `.gitignore`). `vault status`
+shows env keys only, never values. Secrets handling is detailed in `configuration.md` (not
+written yet); see also [security.md → Secrets](security.md#secrets).
+
+## `.vaultrc`
+
+Per-project defaults live in `.vaultrc`, read from `[dir]` (else from the current directory):
+
+```
+# .vaultrc
+name=my-app
+image=darthjee/vault:0.0.1
+runtime=sysbox
+port=3000:80
+port=3443:443
+volume=./shared:/shared
+env=RAILS_ENV=production
+env-file=.env.prod
+stop-timeout=90
+```
+
+| Key | Option | Repeatable |
+|-----|--------|------------|
+| `name` | `--name` | no (last line wins) |
+| `image` | `--image` | no (last line wins) |
+| `runtime` | `--runtime` | no (last line wins) |
+| `stop-timeout` | `--stop-timeout` | no (last line wins) |
+| `port` | `-p`, `--port` | yes, one entry per line |
+| `volume` | `-v`, `--volume` | yes, one entry per line |
+| `env` | `-e`, `--env` | yes, one entry per line |
+| `env-file` | `--env-file` | yes, one entry per line |
+
+- One `key=value` per line. The value is taken verbatim: no quoting, no variable expansion, no
+  `~` expansion. `#` starts a comment only at the beginning of a line; blank lines are
+  skipped.
+- The file is parsed, **never sourced**: it cannot run commands.
+- Relative `volume` sources (starting with `.` or containing `/`) and relative `env-file`
+  paths resolve against the directory holding `.vaultrc`. A bare volume name (`data:/data`)
+  stays a named volume. Relative paths given as flags are passed to docker as given.
+- `image=` changes the image only: unlike `--image`, it does not change the name default nor
+  skip the `/vault` mount.
+- An unknown key warns (`vault: warning: .vaultrc:<line>: unknown key '<key>'`) and is skipped.
+- A line without `=` (`.vaultrc:<line>: expected key=value`) or an invalid value
+  (`.vaultrc:<line>: invalid value for <key>: '<value>'`) fails with exit `1`.
+
+### Precedence
+
+**Flags > `.vaultrc` > built-in defaults.**
+
+- Single-value keys: the flag, else the `.vaultrc` value, else the default.
+- Repeatable keys: any flag replaces every `.vaultrc` entry of that key (one `-p` drops all
+  `port=` lines). `.vault.env` is not a `.vaultrc` entry: it always stays first.
+
+```bash
+vault up                  # ports 3000:80 and 3443:443, from .vaultrc
+vault up -p 8080:80       # port 8080:80 only
+vault up --runtime=auto   # overrides runtime=sysbox
+```
+
+## Guardrails
+
+Checked on flags and `.vaultrc` entries alike, by `up` and `run`. Each refusal is a usage
+error (exit `2`):
+
+| Refused | Message |
+|---------|---------|
+| A volume whose source is the host's Docker socket: any path ending in `docker.sock`, or the socket path of a `unix://` `DOCKER_HOST`. | `vault: error: refusing to mount the Docker socket (<source>)` |
+| A port whose container side is, or whose range covers, `2375` or `2376` (the Docker daemon ports). Forms: `CONTAINER`, `HOST:CONTAINER`, `IP:HOST:CONTAINER`, with or without `/tcp` / `/udp`. | `vault: error: refusing to publish the Docker daemon port <2375\|2376>` |
+
+See [security.md → Do not mount the host's `docker.sock`](security.md#do-not-mount-the-hosts-dockersock)
+and [security.md → Never expose the inner Docker socket](security.md#never-expose-the-inner-docker-socket).
+
+## Baked images
+
+For an image that already holds its stack (see [base-image.md](base-image.md)), pass `--image`
+without a `[dir]`:
+
+```bash
+vault up --image my-app -p 8080:80
+```
+
+Nothing is mounted on `/vault`, and the instance is named after the image (`vault-my-app`,
+data volume `vault-my-app-data`). Pass a `[dir]` to mount it anyway. The other commands find
+the instance from the same `--image` (or `--name`):
+
+```bash
+vault status --image my-app
+vault down --image my-app
+```
+
+## Docker Desktop
+
+On Docker Desktop (macOS), the project directory and every `-v` source must be in Docker
+Desktop's shared file paths (Settings > Resources > File sharing). The CLI does not check it:
+make sure every path you mount is shared.
