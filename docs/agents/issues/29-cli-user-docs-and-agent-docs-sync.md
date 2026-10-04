@@ -22,10 +22,11 @@ deletes the spec.
   - install (`curl | bash`, release asset, pinning `VAULT_VERSION`, the download-and-verify
     alternative with `SHA256SUMS`); the "(#28)" placeholders are removed now that the
     release assets exist;
-  - commands (`up`, `down`, `logs`, `status`, `compose`, `run`, `install`,
-    `version`, `help`) and instance naming (`vault-<name>`, `vault-<name>-data`);
+  - commands (`up`, `down`, `logs`, `status`, `compose`, `run`, `version`, `help`) and
+    instance naming (`vault-<name>`, `vault-<name>-data`); the install step is the in-image
+    `vault-install` entry, not a `vault` subcommand;
   - runtime selection and the `--privileged` fallback warning, linking to **Security**, and
-    how to force a mode (`--runtime=sysbox|privileged`);
+    how to force a mode (`--runtime auto|sysbox|privileged`);
   - ports (default `3000:80`), env vars, `.vault.env`, `.vaultrc`, extra mounts,
     `--image` for baked images;
   - Docker Desktop shared paths (`[dir]` and `-v` sources must be shared; documented, not
