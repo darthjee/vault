@@ -9,42 +9,15 @@ setup() {
   bats_load_library bats-support
   bats_load_library bats-assert
   load helpers/docker_stub
+  load helpers/vault_cli
 
-  ROOT="$BATS_TEST_DIRNAME/../.."
-  VAULTS=("$ROOT/cli/bin/vault" "$ROOT/build/vault")
-  VERSION="$(cat "$ROOT/VERSION")"
-  IMAGE="darthjee/vault:$VERSION"
-  docker_stub_setup
-  unset DOCKER_HOST
-
-  WORK="$BATS_TEST_TMPDIR/work"
-  mkdir -p "$WORK/proj"
-  WORK="$(cd "$WORK" && pwd)"
-  PROJ="$WORK/proj"
+  vault_cli_setup
   : >"$PROJ/compose.yaml"
-  cd "$PROJ" || return
 
-  NO_SUCH='Error response from daemon: No such object: vault-proj'
   PORT_HINT='vault: hint: choose another host port with -p HOST:80'
   SYSBOX_ERROR='vault: error: sysbox-runc failed to start the container
 vault: hint: fix sysbox or use --runtime=privileged'
   FALLBACK='vault: warning: sysbox-runc not found; running with --privileged (see Security in the README)'
-  # shellcheck disable=SC2016 # a Go template, not shell
-  STATUS_FORMAT='{{.Config.Image}}{{"\n"}}{{.HostConfig.Runtime}}{{"\n"}}{{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}}->{{$p}} {{end}}{{end}}{{"\n"}}{{range .Config.Env}}{{index (split . "=") 0}} {{end}}'
-
-  docker_stub_set inspect "" 1 "$NO_SUCH"
-}
-
-# Runs <vault> with the arguments, after clearing the call log.
-# Usage: vault_run <vault> <args...>
-vault_run() {
-  local vault="$1"
-  shift
-  if [ ! -x "$vault" ]; then
-    fail "executable not found: $vault (run make bundle-cli)"
-  fi
-  : >"$DOCKER_STUB_LOG"
-  run --separate-stderr "$vault" "$@"
 }
 
 @test "up runs detached with the full argument list and prints started" {
@@ -94,9 +67,11 @@ vault_run() {
   local vault
   docker_stub_set_nth inspect 1 true
   docker_stub_set_nth inspect 2 "$IMAGE
-sysbox-runc
+sha256:abc
+sysbox-runc false
 3000->80/tcp 
-RAILS_ENV SECRET_KEY_BASE "
+PATH RAILS_ENV SECRET_KEY_BASE "
+  docker_stub_set image "PATH "
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" up --runtime privileged
 

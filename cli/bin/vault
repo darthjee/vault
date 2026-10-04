@@ -42,6 +42,9 @@ vault_main() {
 
   case "$command" in
     up) vault_up "$@" ;;
+    down) vault_down "$@" ;;
+    logs) vault_logs "$@" ;;
+    status) vault_status "$@" ;;
     version) vault_version "$@" ;;
     help | -h | --help) vault_help "$@" ;;
     *) vault_unknown_command "$command" ;;
@@ -97,6 +100,67 @@ vault_up() {
   fi
   vault_docker_run 0 || return
   printf '%s started\n' "$container"
+}
+
+# Stops (docker stop -t <stop-timeout>, skipped when already stopped) and
+# removes vault-<name>. The data volume is never removed. A missing
+# instance is not an error.
+# Usage: vault_down [options] [dir]
+vault_down() {
+  local container
+
+  vault_resolve down "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  container="$(naming_container "$NAMING_NAME")"
+  instance_state "$NAMING_NAME" || return
+  case "$INSTANCE_STATE" in
+    missing)
+      printf '%s does not exist\n' "$container"
+      return 0
+      ;;
+    running)
+      docker_run_cmd stop -t "$CONFIG_STOP_TIMEOUT" "$container" >/dev/null || return 1
+      ;;
+  esac
+  docker_run_cmd rm "$container" >/dev/null || return 1
+  printf '%s stopped and removed (volume %s kept)\n' "$container" "$(naming_volume "$NAMING_NAME")"
+}
+
+# Shows the logs of vault-<name> (docker logs [-f]); fails when it is not
+# running. Returns docker's exit code.
+# Usage: vault_logs [options] [-f] [dir]
+vault_logs() {
+  local follow=()
+
+  vault_resolve logs "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_require_running "$NAMING_NAME" || return
+  if [ "$ARGS_FOLLOW" = 1 ]; then
+    follow=(-f)
+  fi
+  docker_run_cmd logs ${follow[@]+"${follow[@]}"} "$(naming_container "$NAMING_NAME")"
+}
+
+# Prints the status block of vault-<name>. Running, stopped and missing
+# all exit 0; an unreachable daemon exits 1.
+# Usage: vault_status [options] [dir]
+vault_status() {
+  vault_resolve status "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_state "$NAMING_NAME" || return
+  instance_status_print "$NAMING_NAME" "$INSTANCE_STATE"
 }
 
 # Runs `docker run` with CONTAINER_ARGS and attributes a failure
