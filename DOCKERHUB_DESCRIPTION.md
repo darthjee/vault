@@ -12,6 +12,8 @@ host --(-p 8080:80)--> Vault container (dockerd + compose)
 
 Source and documentation: https://github.com/darthjee/vault
 
+Full user guides: https://github.com/darthjee/vault/blob/main/docs/guides/vault.md
+
 ## How to run
 
 Mount your compose project at `/vault` and publish the port your app binds
@@ -69,7 +71,7 @@ vault down
 ```
 
 The CLI supports Linux and macOS (bash 3.2+), not Windows. Full docs:
-https://github.com/darthjee/vault#cli
+https://github.com/darthjee/vault/blob/main/docs/guides/vault/cli.md
 
 ## Environment variables
 
@@ -85,7 +87,7 @@ work as usual.
 
 Warning: `--privileged` gives the container full access to the host; prefer
 the Sysbox runtime. See the
-[Security section of the README](https://github.com/darthjee/vault#security).
+[security guide](https://github.com/darthjee/vault/blob/main/docs/guides/vault/security.md).
 
 ## Supported platforms
 
