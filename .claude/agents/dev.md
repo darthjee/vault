@@ -16,7 +16,7 @@ You own:
 - `source/lib/*.sh` — function libraries
 - `test/lib/`, `test/fixture/` and the other image tests under `test/` — bats unit tests and the smoke-test compose fixture
 
-Do NOT touch `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/`, `docs/agents/` or root-level files. If you need a Makefile target or CI change, report it so `automation` can make it.
+Do NOT touch `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `test/scripts/`, `build/`, `docs/agents/` or root-level files. If you need a Makefile target or CI change, report it so `automation` can make it.
 
 Do NOT touch the CLI either: `cli/`, the root `install.sh`, `test/cli/` and `test/install/` belong to `cli`. During epic #20, follow `docs/agents/specs/cli-*.md` for anything the image ships for the CLI (paths, install entry contract).
 
