@@ -59,6 +59,11 @@ If a new folder is added, its corresponding test and check jobs must be included
 
 This same process must be followed when **planning how to resolve an issue**: include a final step in the plan that identifies the affected folders and lists the CI commands to run before opening a PR.
 
+### User Guides
+
+- A user-visible behaviour change (image, entrypoint, CLI, environment variables) also updates the matching page in `docs/guides/` in the same PR.
+- The README only changes when its overview, quick start or Security summary does; detailed usage belongs in the guides.
+
 ## Code Organization
 
 ### File Responsibility: Libraries vs Scripts

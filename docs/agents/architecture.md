@@ -67,7 +67,7 @@ Function libraries; sourcing them has no side effects.
 ## CLI
 
 The host-side `vault` CLI builds the `docker run` of a Vault image for the user. Commands and
-user-facing behaviour: README `## CLI`; runtime flow: [flow.md → CLI flow](flow.md#cli-flow).
+user-facing behaviour: [the CLI guide](../guides/vault/cli.md); runtime flow: [flow.md → CLI flow](flow.md#cli-flow).
 
 ### Layout
 
@@ -172,12 +172,12 @@ nothing when docker fails).
 | Where it runs | Docker Desktop and Linux hosts. **Not** most managed platforms (ECS Fargate, Cloud Run, Kubernetes without privileged pods). |
 | CI coverage | The smoke test runs only `--privileged`; Sysbox is checked manually. |
 
-See the [README Security section](../../README.md#security) for the risks of `--privileged`.
+See the [Security guide](../guides/vault/security.md) for the risks of `--privileged`.
 
 ## Security
 
 - The inner daemon listens on the unix socket only; it never listens on TCP. The smoke test asserts that nothing listens on 2375.
-- The container runs as root; see the [README Security section](../../README.md#security).
+- The container runs as root; see the [Security guide](../guides/vault/security.md).
 
 ## Testing
 

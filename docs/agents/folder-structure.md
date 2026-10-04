@@ -15,9 +15,9 @@
 | `Makefile` | The only entry point for developers and CI. See [Makefile](#makefile). |
 | `VERSION` | Current version; checked against the release tag. |
 | `DOCKERHUB_DESCRIPTION.md` | Docker Hub page content. |
-| `README.md`, `AGENTS.md`, `LICENSE` | User documentation, project instructions for agents, license. |
+| `README.md`, `AGENTS.md`, `LICENSE` | README: overview, quick start, links to the guides and a short Security summary (detailed usage lives in `docs/guides/`); project instructions for agents; license. |
 | `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and temporary per-epic specs (`specs/`, see [specs.md](specs.md)). |
-| `docs/guides/` | Portable user guides (`vault.md` + `vault/*.md`), copied by hand into consumer repos. Owner `product-owner`. `vault.md` holds the top block and the `**Vault version:** X.Y.Z` line; #42 fills in the rest (see the [guides spec](specs/guides-overview.md)). Checked by `make test-docs`. |
+| `docs/guides/` | Portable user guides, owner `product-owner`. `vault.md` is the index (top block, `**Vault version:** X.Y.Z` line, links to every page); `vault/` holds `concepts.md`, `base-image.md`, `docker-run.md`, `cli.md`, `configuration.md`, `operations.md`, `security.md`, `troubleshooting.md`, `examples.md` and `agents-snippet.md`. Consumer repos copy the tree as a whole, so relative links stay inside it and every other link is an absolute `https://` URL. The version line is kept in sync by `bump-version` / `check-version-tag`. Checked by `make test-docs`. |
 | `.github/` | PR template, commit message template, Copilot pointer. |
 | `.claude/` | Claude agents, check scripts and configuration. |
 

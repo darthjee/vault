@@ -81,7 +81,7 @@ and stopped containers persist, and compose reuses / recreates containers on the
 
 What happens when a user runs `vault <command> [options] [dir] [args]` on the host. The
 entry point is `cli/bin/vault`; the steps are implemented by the libraries in `cli/lib/`.
-User-facing wording: the README `## CLI` section.
+User-facing wording: [the CLI guide](../guides/vault/cli.md).
 
 1. **Dispatch** — no command prints the usage to stderr (exit 2); `version` and `help` (or
    `-h` / `--help` on any command) print to stdout and exit 0 without touching docker. An
