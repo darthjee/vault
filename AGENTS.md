@@ -177,9 +177,7 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Contributing](docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](docs/agents/issues/) | Detailed specs for open issues. |
-| [Specs](docs/agents/specs/) | CLI spec for epic #20 (`cli-*.md`): shared contracts, commands, config, install, tooling and CI. |
-
-During epic #20, `docs/agents/specs/*.md` overrides these docs where they conflict.
+| [Specs](docs/agents/specs.md) | Spec hub: what a spec is, naming, precedence, and the list of active specs (`specs/`). |
 
 ### Issues (`docs/agents/issues/`)
 

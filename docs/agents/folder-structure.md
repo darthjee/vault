@@ -16,7 +16,7 @@
 | `VERSION` | Current version; checked against the release tag. |
 | `DOCKERHUB_DESCRIPTION.md` | Docker Hub page content. |
 | `README.md`, `AGENTS.md`, `LICENSE` | User documentation, project instructions for agents, license. |
-| `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and, temporarily during epic #20, the CLI spec (`specs/`, which overrides the other docs where they conflict; removed by #30). |
+| `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and temporary per-epic specs (`specs/`, see [specs.md](specs.md)). |
 | `.github/` | PR template, commit message template, Copilot pointer. |
 | `.claude/` | Claude agents, check scripts and configuration. |
 

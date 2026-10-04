@@ -14,7 +14,7 @@ You own everything inside `docs/agents/`:
 - `plans/` — implementation plans (`<issue_id>-<slug>/plan.md`)
 - `architecture.md`, `flow.md`, `folder-structure.md`, `contributing.md`
 - `issue-enhancement.md`, `arcanum-split-issue.md`
-- `specs/` — the CLI spec for epic #20 (`cli-*.md`), a working document removed by #30
+- `specs.md` and `specs/` — the spec hub and temporary per-epic specs (`<topic>-*.md`); see `specs.md`
 
 Do NOT touch code (`Dockerfile`, `source/`, `cli/`, `test/`, `scripts/`, `.circleci/`, `Makefile`) or root-level files (including `install.sh`).
 

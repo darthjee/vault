@@ -45,6 +45,6 @@ When a task spans multiple agents:
 | [Contributing](../../docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](../../docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](../../docs/agents/issues/) | Detailed specs for open issues. |
-| [Specs](../../docs/agents/specs/) | CLI spec for epic #20 (`cli-*.md`); overrides the docs above where they conflict, until #30 removes it. |
+| [Specs](../../docs/agents/specs.md) | Spec hub: what a spec is, naming, precedence, and the list of active specs (`specs/`). |
 
 When a new agent is created or its scope changes, update this file and `AGENTS.md`.
