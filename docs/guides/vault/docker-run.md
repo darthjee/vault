@@ -154,4 +154,4 @@ The full shutdown sequence lives in `operations.md` (not written yet).
 ## The CLI alternative
 
 The `vault` CLI wraps these flags: named instances, runtime auto-detection (Sysbox, else
-`--privileged`), `.vaultrc` and guardrails. See `cli.md` (not written yet).
+`--privileged`), `.vaultrc` and guardrails. See [cli.md](cli.md).
