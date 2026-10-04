@@ -21,6 +21,63 @@ runs `docker compose` from `/vault`, and exits with compose's exit code.
 Images are published on Docker Hub as
 [`darthjee/vault`](https://hub.docker.com/r/darthjee/vault).
 
+## Install
+
+The `vault` CLI is installed with a one-liner:
+
+```bash
+curl -fsSL https://github.com/darthjee/vault/releases/latest/download/install.sh | bash
+```
+
+> The release URL works once `install.sh` is published as a release asset
+> (#28). Until then, run `install.sh` from a checkout of this repository.
+
+The installer needs Docker and never runs `sudo`. It pulls
+`darthjee/vault:<version>` and copies the CLI out of that image, so the CLI
+always matches the image version. By default it installs:
+
+- the CLI into `~/.local/bin/vault`;
+- the shell completions into `~/.local/share/vault/completion/`.
+
+Running it again upgrades the CLI in place.
+
+### Installer variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VAULT_VERSION` | the release's version | Version of the CLI (and image) to install. |
+| `VAULT_INSTALL_DIR` | `$HOME/.local/bin` | Where the `vault` CLI is installed. |
+| `VAULT_IMAGE` | `darthjee/vault:$VAULT_VERSION` | Image the CLI is copied from. |
+
+Pin a version:
+
+```bash
+curl -fsSL https://github.com/darthjee/vault/releases/latest/download/install.sh \
+  | VAULT_VERSION=0.0.1 bash
+```
+
+### Completion and PATH
+
+Enable completion in your shell:
+
+```bash
+# bash (~/.bashrc)
+source ~/.local/share/vault/completion/vault.bash
+
+# zsh (~/.zshrc, before compinit)
+fpath=(~/.local/share/vault/completion $fpath)
+```
+
+If the install dir is not in `PATH`, the installer warns and prints the line
+to add, e.g. `export PATH="$HOME/.local/bin:$PATH"`. The install still
+succeeds.
+
+### Integrity
+
+Release tags are not immutable, and `curl | bash` runs whatever the URL
+serves. To verify the download, fetch `install.sh` first and check it
+against the release's `SHA256SUMS` (#28) before running it.
+
 ## Usage
 
 ### Running
