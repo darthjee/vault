@@ -25,6 +25,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/guardrails.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/runtime.sh"
 # shellcheck source=SCRIPTDIR/../lib/container.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/container.sh"
+# shellcheck source=SCRIPTDIR/../lib/instance.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/instance.sh"
 # END LIBS
 
 # Dispatches on the first argument.

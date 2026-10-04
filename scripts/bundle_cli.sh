@@ -27,6 +27,7 @@ LIBS=(
   guardrails.sh
   runtime.sh
   container.sh
+  instance.sh
 )
 
 fail() {
