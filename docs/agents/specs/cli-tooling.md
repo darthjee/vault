@@ -98,7 +98,7 @@ Part of the CLI spec for epic #20. Index: [cli-overview.md](cli-overview.md). Im
 | Check | Covers |
 |-------|--------|
 | `make lint` (shellcheck `-x`) | `*.sh` / `*.bats` under `source/`, `scripts/`, `cli/` and `test/` (so `cli/lib/*.sh`, `test/cli/`, `test/install/`), plus, by path when they exist, `cli/bin/vault`, `cli/completion/vault.bash`, `install.sh`. |
-| `make test` on `BATS_IMAGE` | `test/lib/`, `test/cli/`, `test/install/`. |
+| `make test` on `BATS_IMAGE` | `test/lib/`, `test/cli/`, `test/install/`, `test/scripts/` (repo scripts, e.g. `scripts/github_release.sh` with a stub `gh`; `BATS_IMAGE` only, #28). |
 | `make test` on `BASH32_TEST_IMAGE` | `test/cli/`, `test/install/` (whichever have `.bats` files). `test/lib/` is not run on bash 3.2 (open point 7, settled by #22). |
 | `make test` on `ZSH_IMAGE` (default `zshusers/zsh:5.9`) | `zsh -n cli/completion/_vault`, run from `scripts/test.sh` when the file exists (open point 8, settled by #25). |
 
