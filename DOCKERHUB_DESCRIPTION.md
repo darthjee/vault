@@ -45,6 +45,32 @@ docker run --privileged \
 - The container exits with compose's exit code. SIGTERM / SIGINT run
   `docker compose down` and stop the inner daemon cleanly.
 
+## CLI
+
+The `vault` CLI runs Vault containers for you: it sets up the mounts, the
+data volume and the port, and uses Sysbox when it is detected (otherwise it
+falls back to `--privileged` with a warning).
+
+Install it (needs Docker, never `sudo`):
+
+```bash
+curl -fsSL https://github.com/darthjee/vault/releases/latest/download/install.sh | bash
+```
+
+It installs into `~/.local/bin` and uses the image of the same version;
+`VAULT_VERSION=X.Y.Z` pins one.
+
+Quick start:
+
+```bash
+vault up       # detached, default port 3000:80
+vault status
+vault down
+```
+
+The CLI supports Linux and macOS (bash 3.2+), not Windows. Full docs:
+https://github.com/darthjee/vault#cli
+
 ## Environment variables
 
 | Variable | Default | Purpose |

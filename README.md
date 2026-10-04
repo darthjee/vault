@@ -21,16 +21,34 @@ runs `docker compose` from `/vault`, and exits with compose's exit code.
 Images are published on Docker Hub as
 [`darthjee/vault`](https://hub.docker.com/r/darthjee/vault).
 
-## Install
+## CLI
 
-The `vault` CLI is installed with a one-liner:
+The `vault` CLI runs a Vault image on your host for you: it builds the
+`docker run` command (runtime, mounts, data volume, ports, env) from a project
+directory and manages the resulting container.
+
+```bash
+cd my-stack            # a directory with a compose file
+vault up               # start it, detached, on http://localhost:3000
+vault status           # state, image, runtime, ports, volume, env keys
+vault compose ps       # run "docker compose ps" inside the instance
+vault logs -f          # follow the logs
+vault down             # stop and remove it (the data volume is kept)
+```
+
+Every command also takes the project directory as an argument
+(`vault up ./my-stack`); without it, the current directory is used.
+
+**Supported platforms:** Linux and macOS, with bash 3.2 or later (the stock
+macOS bash works). Windows is not supported.
+
+### Install
+
+The CLI is installed with a one-liner:
 
 ```bash
 curl -fsSL https://github.com/darthjee/vault/releases/latest/download/install.sh | bash
 ```
-
-> The release URL works once `install.sh` is published as a release asset
-> (#28). Until then, run `install.sh` from a checkout of this repository.
 
 The installer needs Docker and never runs `sudo`. It pulls
 `darthjee/vault:<version>` and copies the CLI out of that image, so the CLI
@@ -41,7 +59,11 @@ always matches the image version. By default it installs:
 
 Running it again upgrades the CLI in place.
 
-### Installer variables
+The copy is done by the image's `vault-install` entry, run as the current
+user with no root, no `--privileged` and no inner Docker daemon. It is an
+image entry point used by `install.sh`, not a `vault` subcommand.
+
+#### Installer variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -56,7 +78,10 @@ curl -fsSL https://github.com/darthjee/vault/releases/latest/download/install.sh
   | VAULT_VERSION=0.0.1 bash
 ```
 
-### Completion and PATH
+These variables only affect the installer: the installed CLI reads none of
+them.
+
+#### Completion and PATH
 
 Enable completion in your shell:
 
@@ -68,15 +93,205 @@ source ~/.local/share/vault/completion/vault.bash
 fpath=(~/.local/share/vault/completion $fpath)
 ```
 
+Completion covers the commands, their options, `--runtime` values, files for
+`--env-file` and `-v`, directories for `[dir]`, and existing instance names
+for `--name`.
+
 If the install dir is not in `PATH`, the installer warns and prints the line
 to add, e.g. `export PATH="$HOME/.local/bin:$PATH"`. The install still
 succeeds.
 
-### Integrity
+#### Download and verify
 
 Release tags are not immutable, and `curl | bash` runs whatever the URL
-serves. To verify the download, fetch `install.sh` first and check it
-against the release's `SHA256SUMS` (#28) before running it.
+serves. Each GitHub release publishes these assets:
+
+| Asset | Content |
+|-------|---------|
+| `vault` | The CLI (a single bundled script). |
+| `install.sh` | The installer. |
+| `vault.bash` | The bash completion. |
+| `_vault` | The zsh completion. |
+| `SHA256SUMS` | SHA-256 checksums of the four files above. |
+
+To verify the installer before running it:
+
+```bash
+base=https://github.com/darthjee/vault/releases/latest/download
+curl -fsSLO "$base/install.sh"
+curl -fsSLO "$base/SHA256SUMS"
+sha256sum -c --ignore-missing SHA256SUMS      # Linux
+shasum -a 256 -c --ignore-missing SHA256SUMS  # macOS
+bash install.sh
+```
+
+### Commands
+
+```
+vault <command> [options] [dir] [args]
+```
+
+| Command | Behaviour |
+|---------|-----------|
+| `vault up [options] [dir]` | Starts the instance `vault-<name>`. Detached by default (prints `vault-<name> started`); `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the graceful shutdown. Already running: no-op, prints the status. Stopped: removed, then started again with the current options (the data volume is kept). |
+| `vault down [options] [dir]` | Stops (`docker stop -t <stop-timeout>`) and removes the instance. The data volume is **never** removed. A missing instance is not an error. |
+| `vault logs [options] [-f] [dir]` | Shows the instance logs; `-f` / `--follow` follows them. Fails when the instance is not running. |
+| `vault status [options] [dir]` | Prints the name, state (`running`, `stopped`, `not found`), image, runtime, ports, volume and env keys (never values). Exits 0 whatever the state. |
+| `vault compose [options] <args>` | Runs `docker compose <args>` inside the running instance, e.g. `vault compose ps`. Fails when the instance is not running. |
+| `vault run [options] [dir] <args>` | One-shot `docker run --rm` in the foreground, passing `<args>` to the image (e.g. `vault run config`). Refused while the instance is running, since both would share its data volume. |
+| `vault version` | Prints `vault X.Y.Z`. |
+| `vault help` | Prints the usage. `-h` / `--help` works on every command. |
+
+- `compose` and `run` stop parsing options at the first argument that is not
+  a CLI option; it and everything after it go to `docker compose`.
+- For `run`, the first positional argument is `[dir]` only if it is an
+  existing directory; otherwise it is the first compose argument. Put `--`
+  before an argument that happens to name a directory: `--` ends the options.
+- `compose`, `run` and `up -f` exit with the inner command's exit code.
+  Otherwise the CLI exits `0` on success, `1` on a runtime or environment
+  error (e.g. Docker unreachable, instance not running) and `2` on a usage
+  error (e.g. unknown option, refused volume or port).
+- Messages go to stderr, prefixed `vault: error:`, `vault: warning:` or
+  `vault: hint:`.
+
+### Instances
+
+Each project runs as one named instance. The name is, in order:
+
+1. `--name`, else `name=` in `.vaultrc`;
+2. else, with `--image` and no `[dir]`, the image name without registry, path
+   and tag (`registry.example.com/team/my-app:1.0` gives `my-app`);
+3. else the basename of `[dir]` (else of the current directory).
+
+Derived names are lowercased and stripped of any character outside
+`[a-z0-9_.-]` (`My App!` gives `myapp`). Explicit names must match
+`[a-z0-9][a-z0-9_.-]*`.
+
+The name gives the container `vault-<name>` and the data volume
+`vault-<name>-data`, mounted on `/var/lib/docker` (see
+[Persistence](#persistence)).
+
+> **Warning:** two instances must never share a data volume. Two project
+> directories with the same basename (e.g. `~/a/app` and `~/b/app`) both
+> resolve to `vault-app-data`. The CLI does not detect it: pass `--name` (or
+> set `name=` in `.vaultrc`) to tell them apart.
+
+### Runtime
+
+`up` and `run` pick the runtime with `--runtime` (default `auto`):
+
+| `--runtime` | Sysbox available | Result |
+|-------------|------------------|--------|
+| `auto` | yes | `--runtime=sysbox-runc`. |
+| `auto` | no | `--privileged`, with a warning. |
+| `sysbox` | yes | `--runtime=sysbox-runc`. |
+| `sysbox` | no | Error, exit 1. No fallback. |
+| `privileged` | either | `--privileged`, no warning. |
+
+- Sysbox is detected when `docker info` lists the `sysbox-runc` runtime.
+- Use `--runtime=sysbox` to make sure the CLI never falls back to
+  `--privileged`.
+- If a run with Sysbox fails to start, the CLI never retries with
+  `--privileged`: it shows docker's error and a hint to fix Sysbox or force
+  `--runtime=privileged`.
+- Rootless Docker is refused, whatever the runtime.
+
+Read [Security](#security) before using `--privileged`.
+
+### Options and configuration
+
+| Option | Commands | Default | Meaning |
+|--------|----------|---------|---------|
+| `--name <name>` | all | see [Instances](#instances) | Instance name. |
+| `--image <image>` | all | `darthjee/vault:<CLI version>` | Image to run. On `down`, `logs`, `status` and `compose` it only feeds the name default. |
+| `--runtime <auto\|sysbox\|privileged>` | `up`, `run` | `auto` | See [Runtime](#runtime). |
+| `-p`, `--port <HOST:CONTAINER>` | `up`, `run` | `3000:80` | Published port; repeatable. |
+| `-v`, `--volume <SRC:DST>` | `up`, `run` | none | Extra mount; repeatable. |
+| `-e`, `--env <KEY=VALUE>` | `up`, `run` | none | Env var for the Vault container; repeatable. |
+| `--env-file <file>` | `up`, `run` | none | Env file; repeatable. |
+| `--stop-timeout <seconds>` | `up`, `run`, `down` | `60` | Seconds to wait for the graceful shutdown before docker kills the container. |
+| `-f`, `--attach` | `up` | off | Run in the foreground. |
+| `-f`, `--follow` | `logs` | off | Follow the logs. |
+
+The [environment variables](#environment-variables) of the image
+(`COMPOSE_UP_ARGS`, `VAULT_DOCKERD_TIMEOUT`, `COMPOSE_FILE`, other
+`COMPOSE_*`) are passed with `-e` or an env file; the CLI does not interpret
+them:
+
+```bash
+vault up -e COMPOSE_UP_ARGS="--abort-on-container-exit" -p 8080:80
+```
+
+#### `.vault.env`
+
+When `.vault.env` exists in `[dir]` (else in the current directory), `up` and
+`run` pass it as the first `--env-file`, so explicit env files and `-e` win
+over it. The CLI never reads its content; docker does.
+
+#### `.vaultrc`
+
+Per-project defaults live in `.vaultrc`, read from `[dir]` (else from the
+current directory):
+
+```
+# .vaultrc
+name=my-app
+image=darthjee/vault:0.0.1
+runtime=sysbox
+port=3000:80
+port=3443:443
+volume=./shared:/shared
+env=RAILS_ENV=production
+env-file=.env.prod
+stop-timeout=90
+```
+
+- Keys mirror the long options: `name`, `image`, `runtime`, `port`, `volume`,
+  `env`, `env-file`, `stop-timeout`. `port`, `volume`, `env` and `env-file`
+  are repeatable (one entry per line); for the others the last line wins.
+- One `key=value` per line. The value is taken verbatim: no quoting, no
+  variable expansion, no `~` expansion. `#` starts a comment only at the
+  beginning of a line.
+- The file is parsed, **never sourced**: it cannot run commands.
+- Relative `volume` sources (starting with `.` or containing `/`) and
+  relative `env-file` paths resolve against the directory holding `.vaultrc`.
+  A bare volume name (`data:/data`) stays a named volume. Relative paths given
+  as flags are passed to docker as given.
+- `image=` changes the image only: unlike `--image`, it does not change the
+  name default nor skip the `/vault` mount.
+- **Precedence:** flags > `.vaultrc` > built-in defaults. For repeatable keys,
+  any flag replaces every `.vaultrc` entry of that key (one `-p` drops all
+  `port=` lines).
+- An unknown key warns and is skipped. A line without `=` or an invalid value
+  fails, naming the line number.
+
+#### Guardrails
+
+Checked on flags and `.vaultrc` entries alike (usage error, exit 2):
+
+- a volume whose source is the host's Docker socket (any path ending in
+  `docker.sock`, or the socket of a `unix://` `DOCKER_HOST`) is refused;
+- a port whose container side is, or whose range covers, `2375` or `2376`
+  (the Docker daemon ports) is refused.
+
+### Baked images
+
+For an image that already holds its stack (see
+[Shipping a stack as its own image](#shipping-a-stack-as-its-own-image)),
+pass `--image` without a `[dir]`:
+
+```bash
+vault up --image my-app -p 8080:80
+```
+
+Nothing is mounted on `/vault`, and the instance is named after the image
+(`vault-my-app`). Pass a `[dir]` to mount it anyway.
+
+### Docker Desktop
+
+On Docker Desktop, the project directory and every `-v` source must be in
+Docker Desktop's shared file paths (Settings > Resources > File sharing). The
+CLI does not check it.
 
 ## Usage
 
@@ -253,10 +468,12 @@ the trade-offs before you deploy Vault.
 Requirements: Docker and Make. Lint and unit tests run in pinned tool images.
 
 ```bash
-make build-image   # build darthjee/vault:dev
+make bundle-cli    # bundle cli/ into build/vault
+make build-image   # bundle the CLI, then build darthjee/vault:dev
 make lint          # shellcheck
-make test          # bats unit tests
+make test          # bats unit tests (CLI tests also run under bash 3.2)
 make test-image    # build, then smoke-test the image (needs Docker with --privileged)
+make test-cli-e2e  # build, then drive a real instance with build/vault and test install.sh
 ```
 
 Contributor and agent documentation lives in [AGENTS.md](AGENTS.md) and
