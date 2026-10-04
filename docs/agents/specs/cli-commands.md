@@ -25,12 +25,12 @@ vault <command> [options] [dir] [args]
 
 | Command | Behaviour |
 |---------|-----------|
-| `vault up [options] [dir]` | `docker run -d` of the image as `vault-<name>`. Detached by default; `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the image's graceful shutdown. Already running → no-op. Exists but stopped → `docker rm`, then a fresh `docker run` with the current flags. |
+| `vault up [options] [dir]` | `docker run -d` of the image as `vault-<name>`. Detached by default (docker's container ID is not printed, only `vault-<name> started`); `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the image's graceful shutdown. Already running → no-op. Exists but stopped → `docker rm`, then a fresh `docker run` with the current flags. |
 | `vault down [options]` | `docker stop -t <stop-timeout>`, then `docker rm` of `vault-<name>`. The data volume is never removed. A missing instance exits 0. |
 | `vault logs [options] [-f]` | `docker logs [-f] vault-<name>`. Fails when the instance is not running. |
 | `vault status [options]` | Reports the instance (see [status output](#status-output)). A missing or stopped instance is reported, not a failure (exit 0). |
-| `vault compose [options] <args>` | `docker exec vault-<name> docker compose <args>`. Fails when the instance is not running. |
-| `vault run [options] [dir] <args>` | One-shot `docker run --rm` (foreground) that passes `<args>` to the image's entrypoint, e.g. `vault run config`. No long-running instance. |
+| `vault compose [options] <args>` | `docker exec [-i] [-t] vault-<name> docker compose <args>` (see [TTY flags](#tty-flags)). Fails when the instance is not running. |
+| `vault run [options] [dir] <args>` | One-shot `docker run --rm` (foreground) that passes `<args>` to the image's entrypoint, e.g. `vault run config`. No long-running instance. Refuses to start while `vault-<name>` is running (both would share `vault-<name>-data`); a stopped or missing instance does not block it. |
 | `vault version` | Prints `vault X.Y.Z` (the `VAULT_VERSION` line) to stdout, exit 0. |
 | `vault help` | Prints the usage to stdout, exit 0. `-h` / `--help` on any command does the same. |
 
@@ -52,10 +52,39 @@ begins with the `run` subcommand). In this order:
 6. Each extra `-v`, in order.
 7. Each `-p`, in order (default `3000:80`).
 8. Each `--env-file` (`<dir>/.vault.env` first, when it exists), then each `-e`.
-9. `up`: `--name vault-<name>`, then `-d` unless `-f`. `run`: `--rm` in the same slot.
+9. `up`: `--name vault-<name>`, then `-d` unless `-f`. `run`: `[-i] [-t] --rm` in the same slot.
 10. The image, then (`run` only) the compose arguments.
 
-Tests assert the full list. `-i` / `-t` are not added yet (open point 3, #24).
+Tests assert the full list.
+
+### TTY flags
+
+Settled by #24 (open point 3).
+
+- `-i` when stdin is a TTY (`[ -t 0 ]`), `-t` when stdout is a TTY (`[ -t 1 ]`), always in the
+  order `-i` then `-t`.
+- `run`: inserted in container-argument slot 9, before `--rm`:
+  `... -e <env>... [-i] [-t] --rm <image> <args>...`.
+- `compose`: `docker exec [-i] [-t] vault-<name> docker compose <args>...`.
+- `up` never adds them (`up -f` stays as is).
+
+### Instance state
+
+Settled by #24 (open point 5). One call,
+`docker inspect --format '{{.State.Running}}' vault-<name>`:
+
+| Result | State |
+|--------|-------|
+| exit 0, `true` | `running` |
+| exit 0, anything else | `stopped` |
+| non-zero exit, stderr containing `No such object` or `no such object` | `missing` (docker's stderr is not shown) |
+| any other non-zero exit | docker's stderr passed through, then the "daemon unreachable" message, exit 1 |
+
+- Used by `up`, `down`, `logs`, `status`, `compose` and `run`. `down`, `logs`, `status` and
+  `compose` still never call `docker info`.
+- Both cases of `No such object` are matched: newer docker (e.g. 29.x) prints it lower case.
+- `run` checks it after `vault_resolve`, before `docker run`: `running` → the "`run` while
+  running" message, exit 1.
 
 ## Options
 
@@ -156,7 +185,8 @@ Later sub-issues must not weaken any of these rules.
 
 ## Status output
 
-Fields are fixed; the layout is a draft that #24 may adjust (open point 4). stdout, exit 0:
+Fields and layout are fixed (settled by #24, open point 4: the draft is kept as is). stdout,
+exit 0:
 
 ```
 name:     vault-my-app
@@ -170,7 +200,18 @@ env:      RAILS_ENV, SECRET_KEY_BASE
 
 - `state` is `running`, `stopped` or `not found`. With `not found`, only `name` and `state` are
   printed.
-- `runtime` is `sysbox-runc` or `privileged`, read from the container (`docker inspect`).
+- Labels are padded to the width of `runtime:` plus one space. Multiple ports and env keys are
+  joined with `, `. A field with an empty value prints just its label, with no trailing spaces
+  (e.g. `env:`).
+- Data sources: one `docker inspect` of the container, plus one `docker image inspect` of its
+  image (for `env`).
+
+| Field | Source |
+|-------|--------|
+| `ports` | `HostConfig.PortBindings` (`HOST->CONTAINER/proto`), so they show when stopped too. |
+| `runtime` | `sysbox-runc` when that runtime is used; else `privileged` when `HostConfig.Privileged` is true; else docker's runtime name (e.g. `runc`). |
+| `env` | Keys of `Config.Env` not defined by the image itself (an image key overridden with `-e` is omitted too). If `docker image inspect` fails, every key is listed. |
+
 - `env` lists keys only, never values. No value from an env file is ever printed.
 
 ## Diagnostics and exit codes
@@ -181,6 +222,20 @@ env:      RAILS_ENV, SECRET_KEY_BASE
   to stdout, with no prefix.
 - **No colours** in this epic.
 - Docker's own errors are passed through unchanged (stderr), before the CLI's message.
+- **Missing instance vs. unreachable daemon** (open point 5, #24): commands that skip
+  `docker info` classify the failure of `docker inspect` ([instance state](#instance-state)).
+  stderr containing `No such object` (any case of the `N`) means the instance is missing (docker's stderr is not
+  shown); any other failure means the daemon is unreachable.
+- **Failed `docker run` attribution** (open point 6, #24): applies to `up` (detached and `-f`,
+  only when docker fails before the container starts) and `run`. On a non-zero `docker run`
+  whose container did not start:
+  - stderr contains `port is already allocated` or `address already in use` → port hint;
+  - otherwise, under `--runtime=sysbox-runc` → `error: sysbox-runc failed to start the container` + hint;
+  - otherwise (`--privileged`) → docker's error only, exit 1.
+  - Docker's stderr is always passed through first.
+  - For passthrough (`run`, `up -f`): docker's own start-failure exit codes are 125, 126 and
+    127. Only those are classified. Any other code is the inner command's exit code and is
+    passed through unchanged.
 
 | Code | Meaning |
 |------|---------|
@@ -203,6 +258,7 @@ The `vault: ` prefix is omitted; "+" marks a hint line. Tests assert this wordin
 | Sysbox run fails | stderr | docker's error, then `error: sysbox-runc failed to start the container` + `fix sysbox or use --runtime=privileged` | 1 |
 | port in use | stderr | docker's error + `choose another host port with -p HOST:80` | 1 |
 | instance not running | stderr | `error: instance vault-<name> is not running` | 1 |
+| `run` while running | stderr | `error: instance vault-<name> is running` + `stop it with "vault down", or use "vault compose"` | 1 |
 | already running | stdout | `vault-<name> is already running`, then the status | 0 |
 | started (`up`, detached) | stdout | `vault-<name> started` | 0 |
 | removed (`down`) | stdout | `vault-<name> stopped and removed (volume vault-<name>-data kept)` | 0 |
@@ -252,6 +308,7 @@ The `vault: ` prefix is omitted; "+" marks a hint line. Tests assert this wordin
 | 12 | `.vault.env` and `--env-file` both present | Both passed, `.vault.env` first, so explicit files win. | #23 |
 | 13 | `install.sh` target dir not writable, or not in `PATH` | Not writable fails (exit 1). Not in `PATH`: installed, with a warning showing the line to add. | #26 |
 | 14 | CLI version ≠ image version (with `--image`) | No check: `--image` is the user's choice. | #23 (no check) |
+| 15 | `run` while `vault-<name>` is running | Refused: `instance vault-<name> is running` + hint, exit 1. A stopped or missing instance does not block `run`. | #24 |
 
 ## Performance
 

@@ -146,11 +146,11 @@ blocks #21.
 | # | Open point | Proposed default | Settled by |
 |---|------------|------------------|------------|
 | 1 | How `vault run` tells `[dir]` apart from the first compose argument (`vault run config`). | **Settled:** the first positional is `[dir]` only when it names an existing directory; otherwise it is the first compose argument. `--` ends CLI options explicitly. | #23 (settled) |
-| 2 | Whether `vault run` may start while `vault-<name>` is running (both would share `vault-<name>-data`). | Refuse with an error and exit 1. | #24 |
-| 3 | Whether `vault run` adds `-i` / `-t` when attached to a terminal. | `-t` when stdout is a TTY, `-i` when stdin is a TTY. | #24 |
-| 4 | Exact `status` layout (fields are fixed). | The draft in [cli-commands.md → status](cli-commands.md#status-output). | #24 |
-| 5 | How commands that skip `docker info` (`down`, `logs`, `status`, `compose`) tell a missing instance from an unreachable daemon. | Classify `docker inspect`'s failure: "No such object" → missing instance; anything else → `cannot reach the Docker daemon`. | #24 |
-| 6 | How a failed `docker run` is attributed to Sysbox vs. a busy port. | Docker's error mentioning `port is already allocated` / `address already in use` → port hint; any other start failure under `sysbox-runc` → Sysbox hint. | #24 |
+| 2 | Whether `vault run` may start while `vault-<name>` is running (both would share `vault-<name>-data`). | **Settled:** refuse with `error: instance vault-<name> is running` + hint `stop it with "vault down", or use "vault compose"`, exit 1. A stopped or missing instance does not block `run`. | #24 (settled) |
+| 3 | Whether `vault run` adds `-i` / `-t` when attached to a terminal. | **Settled:** `-i` when stdin is a TTY (`[ -t 0 ]`), `-t` when stdout is a TTY (`[ -t 1 ]`), always `-i` then `-t`, for `run` **and** `compose`. `up` never adds them. | #24 (settled) |
+| 4 | Exact `status` layout (fields are fixed). | **Settled:** the layout in [cli-commands.md → status](cli-commands.md#status-output) is kept as drafted. | #24 (settled) |
+| 5 | How commands that skip `docker info` (`down`, `logs`, `status`, `compose`) tell a missing instance from an unreachable daemon. | **Settled:** one `docker inspect --format '{{.State.Running}}' vault-<name>`; a non-zero exit whose stderr contains `No such object` or `no such object` → missing instance; any other non-zero exit → `cannot reach the Docker daemon`. | #24 (settled) |
+| 6 | How a failed `docker run` is attributed to Sysbox vs. a busy port. | **Settled:** docker's stderr mentioning `port is already allocated` / `address already in use` → port hint; any other start failure under `sysbox-runc` → Sysbox hint; under `--privileged` → docker's error only. For passthrough commands (`run`, `up -f`), only exit codes 125–127 are classified. | #24 (settled) |
 | 7 | Whether `test/lib/` (the in-image entrypoint tests) also runs under bash 3.2. | **Settled: No.** Only `test/cli/` and `test/install/` run under bash 3.2; `test/lib/` runs on `BATS_IMAGE` only (the image's own bash is current). | #22 (settled) |
 | 8 | Which image runs the `zsh -n` syntax check of `_vault`. | A pinned zsh image, called from `make test`. | #25 (with `automation`) |
 | 9 | `github-release` behaviour when the release already exists (job re-run). | Re-upload the assets, replacing existing ones. | #28 |

@@ -34,14 +34,16 @@ check_version() {
 check_help() {
   local vault="$1"
   local arg="$2"
+  local command
 
   require_executable "$vault"
   run --separate-stderr "$vault" "$arg"
 
   assert_success
   assert_line --index 0 "Usage: vault <command> [options] [dir] [args]"
-  assert_line --partial "version"
-  assert_line --partial "help"
+  for command in up down logs status compose run version help; do
+    assert_line --regexp "^  $command +[A-Z]"
+  done
   assert_line --partial "-h, --help"
   assert_equal "$stderr" ""
 }

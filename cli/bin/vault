@@ -25,6 +25,8 @@ source "$(dirname "${BASH_SOURCE[0]}")/../lib/guardrails.sh"
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/runtime.sh"
 # shellcheck source=SCRIPTDIR/../lib/container.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../lib/container.sh"
+# shellcheck source=SCRIPTDIR/../lib/instance.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/instance.sh"
 # END LIBS
 
 # Dispatches on the first argument.
@@ -39,6 +41,12 @@ vault_main() {
   shift
 
   case "$command" in
+    up) vault_up "$@" ;;
+    down) vault_down "$@" ;;
+    logs) vault_logs "$@" ;;
+    status) vault_status "$@" ;;
+    compose) vault_compose "$@" ;;
+    run) vault_run "$@" ;;
     version) vault_version "$@" ;;
     help | -h | --help) vault_help "$@" ;;
     *) vault_unknown_command "$command" ;;
@@ -57,10 +65,177 @@ vault_help() {
   usage_print
 }
 
+# Starts vault-<name>: detached by default, in the foreground with -f.
+# Already running: no-op, prints the status. Stopped: docker rm, then a
+# fresh docker run with the current flags (the volume is kept).
+# Usage: vault_up [options] [dir]
+vault_up() {
+  local mount_dir container
+
+  vault_resolve up "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  mount_dir="$(vault_mount_dir)"
+  if [ -n "$mount_dir" ]; then
+    instance_check_compose_file "$mount_dir"
+  fi
+
+  container="$(naming_container "$NAMING_NAME")"
+  instance_state "$NAMING_NAME" || return
+  case "$INSTANCE_STATE" in
+    running)
+      printf '%s is already running\n' "$container"
+      instance_status_print "$NAMING_NAME" running
+      return
+      ;;
+    stopped)
+      docker_run_cmd rm "$container" >/dev/null || return 1
+      ;;
+  esac
+
+  if [ "$ARGS_ATTACH" = 1 ]; then
+    vault_docker_run 1
+    return
+  fi
+  vault_docker_run 0 || return
+  printf '%s started\n' "$container"
+}
+
+# Stops (docker stop -t <stop-timeout>, skipped when already stopped) and
+# removes vault-<name>. The data volume is never removed. A missing
+# instance is not an error.
+# Usage: vault_down [options] [dir]
+vault_down() {
+  local container
+
+  vault_resolve down "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  container="$(naming_container "$NAMING_NAME")"
+  instance_state "$NAMING_NAME" || return
+  case "$INSTANCE_STATE" in
+    missing)
+      printf '%s does not exist\n' "$container"
+      return 0
+      ;;
+    running)
+      docker_run_cmd stop -t "$CONFIG_STOP_TIMEOUT" "$container" >/dev/null || return 1
+      ;;
+  esac
+  docker_run_cmd rm "$container" >/dev/null || return 1
+  printf '%s stopped and removed (volume %s kept)\n' "$container" "$(naming_volume "$NAMING_NAME")"
+}
+
+# Shows the logs of vault-<name> (docker logs [-f]); fails when it is not
+# running. Returns docker's exit code.
+# Usage: vault_logs [options] [-f] [dir]
+vault_logs() {
+  local follow=()
+
+  vault_resolve logs "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_require_running "$NAMING_NAME" || return
+  if [ "$ARGS_FOLLOW" = 1 ]; then
+    follow=(-f)
+  fi
+  docker_run_cmd logs ${follow[@]+"${follow[@]}"} "$(naming_container "$NAMING_NAME")"
+}
+
+# Prints the status block of vault-<name>. Running, stopped and missing
+# all exit 0; an unreachable daemon exits 1.
+# Usage: vault_status [options] [dir]
+vault_status() {
+  vault_resolve status "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_state "$NAMING_NAME" || return
+  instance_status_print "$NAMING_NAME" "$INSTANCE_STATE"
+}
+
+# Runs `docker compose <args>` inside the running vault-<name>, with -i/-t
+# when stdin/stdout are TTYs. Returns the inner command's exit code.
+# Usage: vault_compose [options] <args...>
+vault_compose() {
+  local container
+
+  vault_resolve compose "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  instance_require_running "$NAMING_NAME" || return
+  instance_tty_flags
+  container="$(naming_container "$NAMING_NAME")"
+  docker_run_cmd exec ${INSTANCE_TTY_ARGS[@]+"${INSTANCE_TTY_ARGS[@]}"} "$container" \
+    docker compose ${ARGS_PASSTHROUGH[@]+"${ARGS_PASSTHROUGH[@]}"}
+}
+
+# One-shot `docker run --rm` (foreground) passing <args> to the image's
+# entrypoint. Refused while vault-<name> is running. Returns the inner
+# command's exit code (contract 5 for docker's own 125-127).
+# Usage: vault_run [options] [dir] <args...>
+vault_run() {
+  local mount_dir container
+
+  vault_resolve run "$@" || return
+  if [ "$ARGS_HELP" = 1 ]; then
+    usage_print
+    return 0
+  fi
+
+  mount_dir="$(vault_mount_dir)"
+  if [ -n "$mount_dir" ]; then
+    instance_check_compose_file "$mount_dir"
+  fi
+
+  instance_state "$NAMING_NAME" || return
+  if [ "$INSTANCE_STATE" = running ]; then
+    container="$(naming_container "$NAMING_NAME")"
+    output_error "instance $container is running"
+    output_hint 'stop it with "vault down", or use "vault compose"'
+    return 1
+  fi
+
+  vault_docker_run 1
+}
+
+# Runs `docker run` with CONTAINER_ARGS and attributes a failure
+# (contract 5). <passthrough> = 1 (run, up -f): stdout is shown and the
+# inner command's exit code is returned; 0 (up detached): stdout (the
+# container ID) is discarded.
+# Usage: vault_docker_run <passthrough 0|1>
+vault_docker_run() {
+  local passthrough="$1" quiet=1 file rc=0 err
+
+  if [ "$passthrough" = 1 ]; then
+    quiet=0
+  fi
+  file="$(mktemp)" || return 1
+  instance_docker_run "$file" "$quiet" "${CONTAINER_ARGS[@]}" || rc=$?
+  err="$(cat "$file")"
+  rm -f "$file"
+  instance_run_result "$rc" "$err" "$passthrough"
+}
+
 # Resolves everything a command needs, in order: options, .vaultrc, the
 # merge with flags and defaults, the instance name, docker on PATH, then for
-# up/run: docker info (daemon, rootless, runtime), the guardrails and the
-# `docker run` argument list. The only place that reads PWD, DOCKER_HOST,
+# up/run: the [dir] check, docker info (daemon, rootless, runtime), the
+# guardrails and the `docker run` argument list (for run, with the TTY
+# flags of instance_tty_flags). The only place that reads PWD, DOCKER_HOST,
 # .vaultrc and tests for .vault.env.
 # Usage: vault_resolve <up|down|logs|status|compose|run> <args...>
 # Sets the ARGS_*, CONFIG_*, NAMING_NAME, VAULT_DIR, VAULT_DIR_GIVEN and,
@@ -76,6 +251,9 @@ vault_resolve() {
   fi
 
   vault_resolve_dir
+  case "$command" in
+    up | run) vault_check_dir || return ;;
+  esac
   config_reset
   if [ -f "$VAULT_DIR/.vaultrc" ]; then
     config_parse "$VAULT_DIR" <"$VAULT_DIR/.vaultrc" || return
@@ -94,7 +272,24 @@ vault_resolve() {
   if [ -f "$VAULT_DIR/.vault.env" ]; then
     config_vault_env "$VAULT_DIR" 1
   fi
-  container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH"
+  INSTANCE_TTY_ARGS=()
+  if [ "$command" = run ]; then
+    instance_tty_flags
+  fi
+  container_build_args "$command" "$NAMING_NAME" "$(vault_mount_dir)" "$ARGS_ATTACH" \
+    ${INSTANCE_TTY_ARGS[@]+"${INSTANCE_TTY_ARGS[@]}"}
+}
+
+# Fails when [dir] was given and does not exist (up and run, before any
+# docker call).
+# Usage: vault_check_dir
+# Returns 1 with "directory not found: <dir>" (<dir> as given).
+vault_check_dir() {
+  if [ "$VAULT_DIR_GIVEN" = 1 ] && [ ! -d "$VAULT_DIR" ]; then
+    output_error "directory not found: $ARGS_DIR"
+    return 1
+  fi
+  return 0
 }
 
 # Sets VAULT_DIR (the [dir] as an absolute path when it exists, else as

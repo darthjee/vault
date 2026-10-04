@@ -7,19 +7,21 @@
 #   RUNTIME_ARG (runtime_select), CONFIG_STOP_TIMEOUT, CONFIG_VOLUMES,
 #   CONFIG_PORTS, CONFIG_ENV_FILES (.vault.env first), CONFIG_ENVS,
 #   CONFIG_IMAGE (config_merge) and, for run, ARGS_PASSTHROUGH.
-# Usage: container_build_args <up|run> <name> <mount-dir> <attach 0|1>
+# Usage: container_build_args <up|run> <name> <mount-dir> <attach 0|1> [tty-args...]
 #   mount-dir: the absolute dir mounted on /vault; "" for no /vault mount
 #   (--image without [dir])
+#   tty-args: run only, -i and/or -t (instance_tty_flags), put before --rm
 # Order:
 #   run
 #   <runtime> --stop-timeout <n>
 #   [-v <dir>:/vault] -v vault-<name>-data:/var/lib/docker
 #   -v <extra>... -p <port>...
 #   --env-file <file>... -e <env>...
-#   up: --name vault-<name> [-d unless attached] | run: --rm
+#   up: --name vault-<name> [-d unless attached] | run: [-i] [-t] --rm
 #   <image> [run: <compose args>...]
 container_build_args() {
   local command="$1" name="$2" mount_dir="$3" attach="$4" item
+  shift 4
 
   CONTAINER_ARGS=(run "$RUNTIME_ARG" --stop-timeout "$CONFIG_STOP_TIMEOUT")
 
@@ -50,6 +52,7 @@ container_build_args() {
       CONTAINER_ARGS+=("$CONFIG_IMAGE")
       ;;
     run)
+      CONTAINER_ARGS+=("$@")
       CONTAINER_ARGS+=(--rm "$CONFIG_IMAGE")
       CONTAINER_ARGS+=(${ARGS_PASSTHROUGH[@]+"${ARGS_PASSTHROUGH[@]}"})
       ;;

@@ -7,6 +7,8 @@
 # - Scripted output per subcommand (the first argument), from files under
 #   $DOCKER_STUB_DIR: <subcommand>.stdout, <subcommand>.stderr and
 #   <subcommand>.status (exit code, default 0). Set them with docker_stub_set.
+# - Per call: docker_stub_set_nth scripts the n-th call (1-based) of a
+#   subcommand; the other calls keep the plain <subcommand>.* files.
 # - Defaults: the daemon is reachable, `docker info` lists runc only and no
 #   rootless security option.
 
@@ -37,15 +39,25 @@ for arg in "\$@"; do
 done
 printf '%s\\n' "\$line" >>"\$DOCKER_STUB_LOG"
 sub="\${1:-}"
-if [ -f "\$DOCKER_STUB_DIR/\$sub.stdout" ]; then
-  cat "\$DOCKER_STUB_DIR/\$sub.stdout"
+n=0
+while IFS= read -r logged || [ -n "\$logged" ]; do
+  if [ "\${logged%%\$(printf '\\t')*}" = "\$sub" ]; then
+    n=\$((n + 1))
+  fi
+done <"\$DOCKER_STUB_LOG"
+base="\$DOCKER_STUB_DIR/\$sub"
+if [ -f "\$base.\$n.status" ]; then
+  base="\$base.\$n"
 fi
-if [ -f "\$DOCKER_STUB_DIR/\$sub.stderr" ]; then
-  cat "\$DOCKER_STUB_DIR/\$sub.stderr" >&2
+if [ -f "\$base.stdout" ]; then
+  cat "\$base.stdout"
+fi
+if [ -f "\$base.stderr" ]; then
+  cat "\$base.stderr" >&2
 fi
 status=0
-if [ -f "\$DOCKER_STUB_DIR/\$sub.status" ]; then
-  status="\$(cat "\$DOCKER_STUB_DIR/\$sub.status")"
+if [ -f "\$base.status" ]; then
+  status="\$(cat "\$base.status")"
 fi
 exit "\$status"
 STUB
@@ -68,6 +80,14 @@ docker_stub_set() {
   else
     rm -f "$DOCKER_STUB_DIR/$sub.stderr"
   fi
+}
+
+# Scripts the output of the n-th call (1-based) of one subcommand only.
+# Usage: docker_stub_set_nth <subcommand> <n> <stdout> [status] [stderr]
+docker_stub_set_nth() {
+  local sub="$1" n="$2"
+  shift 2
+  docker_stub_set "$sub.$n" "$@"
 }
 
 # Scripts a successful `docker info`: runtimes JSON and security options JSON.
