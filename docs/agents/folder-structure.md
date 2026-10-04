@@ -7,7 +7,7 @@
 | `Dockerfile` | Builds the Vault image (`FROM docker:${DOCKER_VERSION}-dind`, adds bash, installs `source/`, `EXPOSE 80`, `VOLUME /var/lib/docker`, `WORKDIR /vault`). |
 | `source/` | Files installed into the image: `bin/entrypoint.sh` (the only script) and `lib/*.sh` (function libraries). |
 | `test/` | `lib/*.bats` (bats unit tests for `source/lib`) and `fixture/docker-compose.yml` (smoke-test stack). |
-| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `release.sh`, `ci/`. See [scripts/](#scripts). |
+| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh`, `release.sh`, `ci/`. See [scripts/](#scripts). |
 | `.circleci/` | CI and release pipeline. |
 | `Makefile` | The only entry point for developers and CI. See [Makefile](#makefile). |
 | `VERSION` | Current version; checked against the release tag. |
@@ -31,6 +31,7 @@
   - `docker_login.sh` — `docker login` to Docker Hub.
   - `setup_buildx.sh` — QEMU / buildx setup for multi-platform builds.
   - `update_description.sh` — fetches `docker_hub.sh` (pinned) and pushes `DOCKERHUB_DESCRIPTION.md`.
+- Test scripts: `test.sh` (bats), `test_image.sh` (smoke test), `test_cli_e2e.sh` (CLI end-to-end test).
 - Everything under `scripts/` is shellchecked by `make lint`.
 
 ## Makefile
@@ -41,6 +42,7 @@
 | `lint` | shellcheck over `source/`, `scripts/` and `test/` (`scripts/lint.sh`). |
 | `test` | bats over `test/lib/` (`scripts/test.sh`). |
 | `test-image` | Depends on `build-image`, then runs the smoke test (`scripts/test_image.sh`). |
+| `test-cli-e2e` | Depends on `build-image`, then runs `scripts/test_cli_e2e.sh` (CLI end-to-end test). |
 | `bump-version VERSION=X.Y.Z` | Updates `VERSION` and the README version line (`scripts/bump_version.sh`). |
 | `check-version-tag TAG=X.Y.Z` | Fails unless the tag matches `VERSION` and the README (`scripts/check_tag_version.sh`). |
 | `release TAG=x` | Multi-arch build and push (`scripts/release.sh`). |
@@ -51,5 +53,5 @@
 |----------|---------|---------|
 | `SHELLCHECK_IMAGE` | `koalaman/shellcheck:v0.11.0` | Image used by `make lint`. |
 | `BATS_IMAGE` | `bats/bats:1.14.0` | Image used by `make test`. |
-| `IMAGE` | `darthjee/vault:dev` | Tag built by `build-image` and tested by `test-image`. |
+| `IMAGE` | `darthjee/vault:dev` | Tag built by `build-image` and tested by `test-image` and `test-cli-e2e`. |
 | `DOCKER_VERSION` | unset (Dockerfile default) | Base image version passed as a build arg. |

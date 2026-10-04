@@ -87,5 +87,6 @@ See the [README Security section](../../README.md#security) for the risks of `--
 | Lint | `make lint` | shellcheck over every `*.sh` / `*.bats` under `source/`, `scripts/` and `test/`. |
 | Unit | `make test` | bats tests (`test/lib/*.bats`) over the `source/lib/` functions, with external commands (`docker`, `mount`, ...) stubbed. |
 | Smoke | `make test-image` | `scripts/test_image.sh` with the fixture `test/fixture/docker-compose.yml`: build the image, run it `--privileged`, `curl` the published port, assert no listener on 2375, `docker stop` and expect exit 0, then always clean up. |
+| End-to-end | `make test-cli-e2e` | `scripts/test_cli_e2e.sh` with the same fixture: run the real bundled `build/vault` `up` / `status` / `compose ps` / `down` against the built image (`--runtime=privileged`, a free localhost port, a unique `e2e-<pid>` name, volume kept after `down`), then run `install.sh` from the local image into a temp `HOME`; cleanup always runs. Last line `test-cli-e2e: OK`. |
 
 Not covered by CI: Sysbox at runtime and arm64 at runtime (built by the release, not run).

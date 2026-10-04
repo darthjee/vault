@@ -49,7 +49,8 @@ Before a PR is considered complete, all CI checks relevant to the modified parts
 
 | Modified paths | Local commands |
 | --- | --- |
-| `Dockerfile`, `source/`, `test/` | `make lint`, `make test`, `make test-image` |
+| `Dockerfile`, `source/`, `test/` | `make lint`, `make test`, `make test-image`, `make test-cli-e2e` |
+| `cli/`, `install.sh` | `make lint`, `make test`, `make test-cli-e2e` |
 | `scripts/`, `Makefile` | `make lint` |
 | `.circleci/` | `circleci config validate` (if the CLI is installed) |
 
