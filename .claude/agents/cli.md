@@ -40,7 +40,6 @@ make test-cli-e2e  # end-to-end test against the built image
 
 ## Conventions
 
-- During epic #20, follow the CLI spec in `docs/agents/specs/cli-*.md`; it overrides other docs where they conflict. A PR that deviates from it updates it in the same PR.
 - **bash 3.2 only:** no associative arrays, `mapfile` / `readarray`, `${var,,}` / `${var^^}`, `declare -n` or `[[ -v ]]`.
 - `set -euo pipefail` in `cli/bin/vault` only.
 - Libraries only define functions, prefixed by module; public before `_private` (as in `docs/agents/contributing.md`).

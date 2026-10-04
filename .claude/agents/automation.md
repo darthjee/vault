@@ -19,7 +19,7 @@ You own:
 - `test/scripts/` — bats tests for `scripts/` (stub `gh`, run on `BATS_IMAGE` only)
 - `build/` — the git-ignored output of `scripts/bundle_cli.sh` (`build/vault`), including its `.gitignore` entry
 
-Do NOT touch `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `install.sh`, `docs/agents/` or other root-level files. During epic #20, follow `docs/agents/specs/cli-*.md` for the CLI's Make targets, scripts, version line, bundling rule and CI jobs.
+Do NOT touch `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `install.sh`, `docs/agents/` or other root-level files.
 
 ## Stack
 
