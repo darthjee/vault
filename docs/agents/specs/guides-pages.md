@@ -41,7 +41,8 @@ every page under `docs/guides/`.
 - **Choosing a path:**
   - image directly (`docker run`, `vault/docker-run.md`) vs. the `vault` CLI (`vault/cli.md`);
   - image as is (mount the project at `/vault`) vs. base image (`vault/base-image.md`).
-- Page index: one line per page, filled as each page lands.
+- Page index: one line per page, filled as each page lands; pages not written yet are named in
+  inline code, not linked (see [Sub-issue map](guides-overview.md#sub-issue-map)).
 
 ## `concepts.md`
 
