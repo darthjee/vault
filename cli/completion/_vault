@@ -1,0 +1,102 @@
+#compdef vault
+# zsh completion for the vault CLI.
+# Put this file in a directory of $fpath (as _vault) before compinit runs.
+# Options per command follow _args_key in cli/lib/args.sh.
+
+# Completes the vault instance names (vault-* containers, prefix stripped).
+# Offers nothing, and prints nothing on stderr, when docker is missing or fails.
+_vault_instances() {
+  local -a containers
+  local expl
+  (( $+commands[docker] || $+functions[docker] )) || return 1
+  containers=(${(f)"$(docker ps -a --filter 'name=^vault-' --format '{{.Names}}' 2>/dev/null)"})
+  containers=(${(M)containers:#vault-?*})
+  (( $#containers )) || return 1
+  _wanted instances expl 'instance name' compadd -- "${(@)containers#vault-}"
+}
+
+_vault() {
+  local curcontext="$curcontext" state line ret=1
+  typeset -A opt_args
+
+  local -a common runtime_opts stop_opt
+  common=(
+    '--name=[instance name]:instance name:_vault_instances'
+    '--image=[image to run]:image: '
+    '(- *)'{-h,--help}'[print the help]'
+  )
+  runtime_opts=(
+    '--runtime=[container runtime]:runtime:(auto sysbox privileged)'
+    '*'{-p,--port=}'[published port, repeatable]:HOST\:CONT: '
+    '*'{-v,--volume=}'[extra mount, repeatable]:SRC\:DST:_files'
+    '*'{-e,--env=}'[environment variable, repeatable]:KEY=VALUE: '
+    '*--env-file=[env file, repeatable]:env file:_files'
+  )
+  stop_opt=('--stop-timeout=[stop timeout in seconds]:seconds: ')
+
+  _arguments -C \
+    '1: :->command' \
+    '*:: :->args' && ret=0
+
+  case $state in
+    command)
+      local -a commands
+      commands=(
+        'up:Start the instance (detached; -f to stay in the foreground)'
+        'down:Stop and remove the instance (the data volume is kept)'
+        'logs:Show the instance logs (-f to follow)'
+        'status:Show the instance state, image, runtime, ports and env keys'
+        'compose:Run "docker compose <args>" inside the running instance'
+        'run:Run the image once with <args> (docker run --rm)'
+        'version:Print the CLI version'
+        'help:Print this help'
+      )
+      _describe -t commands 'vault command' commands && ret=0
+      ;;
+    args)
+      curcontext="${curcontext%:*:*}:vault-$words[1]:"
+      case $words[1] in
+        up)
+          _arguments -S \
+            $common $runtime_opts $stop_opt \
+            '(-f --attach)'{-f,--attach}'[run in the foreground]' \
+            '1::directory:_directories' && ret=0
+          ;;
+        run)
+          _arguments -S \
+            $common $runtime_opts $stop_opt \
+            '1::directory:_directories' \
+            '*::args: ' && ret=0
+          ;;
+        down)
+          _arguments -S \
+            $common $stop_opt \
+            '1::directory:_directories' && ret=0
+          ;;
+        logs)
+          _arguments -S \
+            $common \
+            '(-f --follow)'{-f,--follow}'[follow the logs]' \
+            '1::directory:_directories' && ret=0
+          ;;
+        status)
+          _arguments -S \
+            $common \
+            '1::directory:_directories' && ret=0
+          ;;
+        compose)
+          _arguments -S -A '-*' \
+            $common \
+            '*::args: ' && ret=0
+          ;;
+        version | help)
+          ret=0
+          ;;
+      esac
+      ;;
+  esac
+
+  return ret
+}
+
+_vault "$@"
