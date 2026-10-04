@@ -37,15 +37,15 @@ Docker Hub as [`darthjee/vault`](https://hub.docker.com/r/darthjee/vault).
 
 | Path | When | Guide |
 |------|------|-------|
-| The image directly (`docker run`) | You want full control of the `docker run` flags, or run Vault from another tool. | `vault/docker-run.md` (not written yet) |
+| The image directly (`docker run`) | You want full control of the `docker run` flags, or run Vault from another tool. | [docker-run.md](vault/docker-run.md) |
 | The `vault` CLI | You want named instances, runtime auto-detection (Sysbox, else `--privileged`), `.vaultrc` and guardrails. | `vault/cli.md` (not written yet) |
 
 ### Image as is or as a base image
 
 | Path | How | Guide |
 |------|-----|-------|
-| Image as is | Mount your compose project at `/vault`. | `vault/docker-run.md` (not written yet) |
-| Base image | `FROM darthjee/vault:<version>` + `COPY . /vault`, then ship the derived image. | `vault/base-image.md` (not written yet) |
+| Image as is | Mount your compose project at `/vault`. | [docker-run.md](vault/docker-run.md) |
+| Base image | `FROM darthjee/vault:<version>` + `COPY . /vault`, then ship the derived image. | [base-image.md](vault/base-image.md) |
 
 Read [concepts.md](vault/concepts.md) first either way: it explains `/vault`, ports, bind
 mounts and persistence.
@@ -56,3 +56,5 @@ mounts and persistence.
 |------|----------|
 | [concepts.md](vault/concepts.md) | Docker-in-Docker, `/vault`, port flow, bind mounts, persistence, startup sequence. |
 | [security.md](vault/security.md) | `--privileged` risks, Sysbox, root, Docker sockets, secrets, supported runtimes and platforms. |
+| [docker-run.md](vault/docker-run.md) | Running the image directly: runtime, `/vault` mount, data volume, ports, env vars, compose arguments, stopping. |
+| [base-image.md](vault/base-image.md) | Shipping a stack as its own image: Dockerfile, offline preload, running the baked image, secrets. |
