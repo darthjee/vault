@@ -67,15 +67,17 @@ A SIGTERM / SIGINT trap is installed first, so a signal at any point runs the sh
   `EXPOSE 80` as a convention only. Databases / internal services should not publish ports.
   No built-in reverse proxy.
 - **Privileges:** Vault must run with `--privileged`, or with the Sysbox runtime
-  (`--runtime=sysbox-runc`, safer). The README must keep a Security section explaining the
-  risks of `--privileged` (host escape, device access, no seccomp/AppArmor, unusable on
-  most managed platforms). Never expose the inner Docker socket over TCP.
+  (`--runtime=sysbox-runc`, safer). The README must keep a short `## Security` section that
+  summarizes the risks of `--privileged` and links to
+  [docs/guides/vault/security.md](docs/guides/vault/security.md), which must keep the full
+  explanation (host escape, device access, no seccomp/AppArmor, unusable on most managed
+  platforms). Never expose the inner Docker socket over TCP.
 
 ### CLI
 
 The `vault` CLI is a host-side client: it builds the `docker run` of a Vault image for the
 user. Details: [Architecture](docs/agents/architecture.md) and [Flow](docs/agents/flow.md);
-user docs: the README `## CLI` section.
+user docs: [docs/guides/vault/cli.md](docs/guides/vault/cli.md).
 
 - **Source and packaging:** `cli/bin/vault` (entry point; the only script that reads the
   environment, `PWD`, `DOCKER_HOST` and `.vaultrc`) plus `cli/lib/*.sh` (function libraries),
@@ -183,6 +185,20 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Plans](docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](docs/agents/issues/) | Detailed specs for open issues. |
 | [Specs](docs/agents/specs.md) | Spec hub: what a spec is, naming, precedence, and the list of active specs (`specs/`). |
+
+### User guides (`docs/guides/`)
+
+Portable user documentation (`vault.md` plus `vault/*.md`), owned by `product-owner`. The
+README only keeps an overview, a quick start and a short Security summary, and links to
+[docs/guides/vault.md](docs/guides/vault.md) for the details.
+
+- **Portable:** consumer repositories copy the whole tree. Relative links stay inside
+  `docs/guides/`; everything else uses absolute `https://github.com/darthjee/vault/...` URLs.
+- **Versioned:** `docs/guides/vault.md` holds one `**Vault version:** X.Y.Z` line, kept in
+  sync by `make bump-version` and checked by `make check-version-tag`.
+- **Checked:** `make test-docs` checks the links.
+- **Kept current:** a user-visible behaviour change updates the matching guide page in the
+  same PR.
 
 ### Issues (`docs/agents/issues/`)
 
