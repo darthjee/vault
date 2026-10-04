@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Usage: scripts/bump_version.sh X.Y.Z
 # Updates the VERSION file, the README "**Current Version:**" line and the
-# VAULT_VERSION="X.Y.Z" line of cli/bin/vault and install.sh (when it exists).
+# VAULT_VERSION="X.Y.Z" line of cli/bin/vault and install.sh.
 # Fails before writing anything if a target file lacks that line or has more
 # than one.
 set -euo pipefail
@@ -30,10 +30,7 @@ if ! grep -q '^\*\*Current Version:\*\* ' "$README_FILE"; then
   exit 1
 fi
 
-version_files=("$CLI_FILE")
-if [ -f "$INSTALL_FILE" ]; then
-  version_files+=("$INSTALL_FILE")
-fi
+version_files=("$CLI_FILE" "$INSTALL_FILE")
 
 for file in "${version_files[@]}"; do
   name="${file#"$ROOT"/}"
