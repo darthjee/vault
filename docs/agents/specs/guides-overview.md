@@ -75,6 +75,9 @@ An agent that needs a change outside its paths reports it to the owner.
 
 - #43, #44 and #45 can run in parallel once #42 has landed.
 - Each page sub-issue also adds its page to the page index of `vault.md`.
+- Pages not written yet are named in inline code (e.g. `vault/cli.md`), **not linked**, so
+  the link check passes. The sub-issue that writes a page turns every such mention, in every
+  guide page, into a relative link.
 
 ## Open points
 
