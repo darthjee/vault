@@ -38,7 +38,7 @@ Docker Hub as [`darthjee/vault`](https://hub.docker.com/r/darthjee/vault).
 | Path | When | Guide |
 |------|------|-------|
 | The image directly (`docker run`) | You want full control of the `docker run` flags, or run Vault from another tool. | [docker-run.md](vault/docker-run.md) |
-| The `vault` CLI | You want named instances, runtime auto-detection (Sysbox, else `--privileged`), `.vaultrc` and guardrails. | `vault/cli.md` (not written yet) |
+| The `vault` CLI | You want named instances, runtime auto-detection (Sysbox, else `--privileged`), `.vaultrc` and guardrails. | [cli.md](vault/cli.md) |
 
 ### Image as is or as a base image
 
@@ -56,5 +56,6 @@ mounts and persistence.
 |------|----------|
 | [concepts.md](vault/concepts.md) | Docker-in-Docker, `/vault`, port flow, bind mounts, persistence, startup sequence. |
 | [security.md](vault/security.md) | `--privileged` risks, Sysbox, root, Docker sockets, secrets, supported runtimes and platforms. |
+| [cli.md](vault/cli.md) | The `vault` CLI: install, commands, instances, runtime, options, `.vaultrc`, `.vault.env`, guardrails, baked images, completion. |
 | [docker-run.md](vault/docker-run.md) | Running the image directly: runtime, `/vault` mount, data volume, ports, env vars, compose arguments, stopping. |
 | [base-image.md](vault/base-image.md) | Shipping a stack as its own image: Dockerfile, offline preload, running the baked image, secrets. |
