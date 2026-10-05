@@ -40,4 +40,3 @@ The issue that writes a spec adds its row here. The issue that removes the spec 
 
 | Prefix | Epic | Removed by |
 |--------|------|------------|
-| [`guides-`](specs/guides-overview.md) | #39 | #48 |
