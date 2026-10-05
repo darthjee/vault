@@ -194,6 +194,11 @@ README only keeps an overview, a quick start and a short Security summary, and l
 
 - **Portable:** consumer repositories copy the whole tree. Relative links stay inside
   `docs/guides/`; everything else uses absolute `https://github.com/darthjee/vault/...` URLs.
+  Inline links only, and no assets (images, includes) that would have to be copied separately.
+- **Audience:** developers of a consumer project **and** the AI agents working in that repo.
+- **Style:** plain, task-oriented Markdown: short sections, tables for mappings, copy-paste
+  ready commands. Every `vault/*.md` page starts with a one-line purpose and a link back to
+  `../vault.md`.
 - **Versioned:** `docs/guides/vault.md` holds one `**Vault version:** X.Y.Z` line, kept in
   sync by `make bump-version` and checked by `make check-version-tag`.
 - **Checked:** `make test-docs` checks the links.
