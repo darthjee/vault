@@ -19,7 +19,7 @@ You own everything inside `docs/agents/`:
 You also own `docs/guides/`:
 
 - `vault.md` and `vault/*.md` — the portable user guides, copied by hand into consumer repos
-- While epic #39 is open, follow the active guides spec (`docs/agents/specs/guides-*.md`, listed in `specs.md`)
+- Follow the guide rules in `AGENTS.md` → "User guides" (portability, audience, style, version line, link check)
 
 Do NOT touch code (`Dockerfile`, `source/`, `cli/`, `test/`, `scripts/`, `.circleci/`, `Makefile`) or root-level files (including `install.sh`).
 
