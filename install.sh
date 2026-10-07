@@ -18,7 +18,7 @@
 set -euo pipefail
 
 requested_version="${VAULT_VERSION:-}"
-VAULT_VERSION="0.0.1"
+VAULT_VERSION="0.1.0"
 version="${requested_version:-$VAULT_VERSION}"
 
 image="${VAULT_IMAGE:-darthjee/vault:$version}"

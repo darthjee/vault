@@ -4,7 +4,7 @@
 # This is the only script that reads the environment and .vaultrc.
 set -euo pipefail
 
-VAULT_VERSION="0.0.1"
+VAULT_VERSION="0.1.0"
 
 # BEGIN LIBS
 # shellcheck source=SCRIPTDIR/../lib/output.sh
