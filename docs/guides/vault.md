@@ -5,7 +5,7 @@
 > The originals live in the
 > [Vault repository](https://github.com/darthjee/vault/tree/main/docs/guides).
 
-**Vault version:** 0.0.1
+**Vault version:** 0.1.0
 
 ## What Vault is
 
