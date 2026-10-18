@@ -127,11 +127,12 @@ Modelled after the `navi` project:
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
 - `update-description`: pushes `DOCKERHUB_DESCRIPTION.md` via `darthjee/scripts`' `docker_hub.sh`.
-- `github-release`: `make github-release TAG=$CIRCLE_TAG` (`scripts/github_release.sh`) — builds
-  the CLI bundle, creates a published GitHub release marked Latest with generated notes (or keeps
-  an existing one), and uploads `vault`, `install.sh`, `vault.bash`, `_vault` and `SHA256SUMS`
-  with `--clobber`, using the `gh` CLI from the machine image. A failure never rolls back the
-  Docker image; the job can be re-run.
+- `github-release`: `make ci-github-release-setup` (installs the `gh` CLI from GitHub's apt
+  repository, `scripts/ci/install_gh.sh`), then `make github-release TAG=$CIRCLE_TAG`
+  (`scripts/github_release.sh`) — builds the CLI bundle, creates a published GitHub release
+  marked Latest with generated notes (or keeps an existing one), and uploads `vault`,
+  `install.sh`, `vault.bash`, `_vault` and `SHA256SUMS` with `--clobber`, using `gh`. A failure
+  never rolls back the Docker image; the job can be re-run.
 - On PRs / branches: the `build-and-test` job runs `make lint`, `make test`,
   `make test-docs` (link check of `docs/guides/`, `scripts/check_guides_links.sh`),
   `make test-image` (build the image, then start Vault `--privileged` with a tiny compose file,
@@ -145,14 +146,14 @@ Modelled after the `navi` project:
   receive any of them.
 - CircleCI YAML only sets up executors, contexts and filters and calls make targets; any
   logic lives in `scripts/*.sh`, and CI-only wrappers (`docker login`, buildx/QEMU setup,
-  fetching `docker_hub.sh`) live in `scripts/ci/`.
+  installing `gh`, fetching `docker_hub.sh`) live in `scripts/ci/`.
 - Makefile targets: `bundle-cli` (`build/vault`), `build-image` (runs `bundle-cli` first),
   `lint` (shellcheck), `test` (bats, including bash 3.2 and `zsh -n`), `test-docs` (link
   check of `docs/guides/`, run on the host), `test-image`,
   `test-cli-e2e` (after `test-image` in CI),
   `bump-version VERSION=X.Y.Z`, `check-version-tag TAG=X.Y.Z`, `release TAG=x` (fails fast
   without `TAG`), `github-release TAG=X.Y.Z` (fails fast without `TAG`), `update-description`,
-  `ci-release-setup` (CI-only).
+  `ci-release-setup` and `ci-github-release-setup` (CI-only).
   Variables: `SHELLCHECK_IMAGE`, `BATS_IMAGE`, `BASH32_TEST_IMAGE`, `ZSH_IMAGE`, `IMAGE`,
   `SMOKE_TIMEOUT`, `RELEASE_IMAGE`, `PUSH`, `DOCKER_VERSION` (build arg for the pinned
   `docker:<version>-dind` base).

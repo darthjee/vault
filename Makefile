@@ -9,7 +9,7 @@ PUSH ?= true
 
 export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
 
-.PHONY: lint test test-docs bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup
+.PHONY: lint test test-docs bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup ci-github-release-setup
 
 lint:
 	scripts/lint.sh
@@ -56,3 +56,6 @@ require-tag:
 ci-release-setup:
 	scripts/ci/setup_buildx.sh
 	scripts/ci/docker_login.sh
+
+ci-github-release-setup:
+	scripts/ci/install_gh.sh

@@ -61,6 +61,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install GitHub CLI
+          command: make ci-github-release-setup
+      - run:
           name: Create GitHub release and upload CLI assets
           command: make github-release TAG="$CIRCLE_TAG"
 
