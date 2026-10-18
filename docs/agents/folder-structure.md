@@ -66,6 +66,7 @@ executable `build/vault`.
 - A recipe longer than one line moves to `scripts/*.sh`.
 - CI-only steps live in `scripts/ci/`:
   - `docker_login.sh` — `docker login` to Docker Hub.
+  - `install_gh.sh` — installs the GitHub CLI from cli.github.com (apt) for the `github-release` job.
   - `setup_buildx.sh` — QEMU / buildx setup for multi-platform builds.
   - `update_description.sh` — fetches `docker_hub.sh` (pinned) and pushes `DOCKERHUB_DESCRIPTION.md`.
 - Build script: `bundle_cli.sh` (builds `build/vault` from `cli/bin/vault` and `cli/lib/*.sh`).
@@ -92,6 +93,7 @@ executable `build/vault`.
 | `github-release TAG=X.Y.Z` | Builds the CLI bundle and `SHA256SUMS`, creates (or reuses) the GitHub release and uploads the assets (`scripts/github_release.sh`). Fails fast without `TAG`. |
 | `update-description` | Pushes `DOCKERHUB_DESCRIPTION.md` to Docker Hub (`scripts/ci/update_description.sh`). |
 | `ci-release-setup` | CI-only: buildx setup and Docker Hub login. |
+| `ci-github-release-setup` | CI-only: installs the GitHub CLI (`scripts/ci/install_gh.sh`). |
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
