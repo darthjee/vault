@@ -1,0 +1,15 @@
+# Write the feature spec files
+
+Create the four feature files. Each starts with a link back to [the overview](image-cache-overview.md) (relative, inside `specs/`) and has its own **Edge cases** and **Acceptance criteria** sections. Cross-cutting concerns (backward compatibility, cache poisoning) stay in the overview only.
+
+- `image-cache-agents.md` — **final** (read by #66). The **Scripts agent** contract from `plan.md` verbatim: name, description, owned paths, the "path decides the owner" rule with the coupled-script cases (`test_image.sh` → `dev`, `test_cli_e2e.sh` / `bundle_cli.sh` → `cli`, `release.sh` → `automation` design), what `automation` keeps, the docs that list ownership. Acceptance: every file under `scripts/` and `test/scripts/` owned by exactly one agent.
+- `image-cache-dockerfile.md` — **final** (read by #68). Target order: `FROM`, `apk add --no-cache bash`, the `mkdir`, completion files, `source/lib/`, `entrypoint.sh`, `install.sh`, then `COPY build/vault` last; metadata (`ENV`, `VOLUME`, `WORKDIR`, `EXPOSE`, `ENTRYPOINT`) unchanged in effect. Permissions that must not change (`755` binaries, `644` completions, `0755` directories). Edge case: the `mkdir` must still precede `COPY --chmod=644` into the directory. Acceptance: contents and behaviour unchanged, `make test-image` / `make test-cli-e2e` green, a `cli/`-only change rebuilds only the `build/vault` layer with a warm cache.
+- `image-cache-reproducible.md` — **goals + acceptance + open decisions** (read by #69). Goals: `SOURCE_DATE_EPOCH` from the last commit and `rewrite-timestamp=true` in `release.sh` and `make build-image`; a cache-bust knob exists. Edge cases: `DOCKER_VERSION` bump invalidates every layer. Acceptance: two builds of the same commit → identical layer digests; `cli/`-only change → only the last layer differs. **Open decisions:** minimum buildx / BuildKit version (and whether the CircleCI `machine` image has it), how the `apk` layer stays deterministic, the knob's form (build arg vs periodic no-cache rebuild), whether the digest check is a script run in CI.
+- `image-cache-registry-cache.md` — **goals + acceptance + contracts** (read by #70). Contracts: `darthjee/vault:buildcache`, `mode=max`, `build-and-test` imports anonymously (no credentials, no new context), `build-and-release` imports and exports, PR builds never export. Edge cases: missing cache on the first build, Docker Hub unreachable or rate-limited → uncached build, not a failure; multi-arch cache with an amd64-only PR build. Also: one-line `DOCKERHUB_DESCRIPTION.md` note that `:buildcache` is not a runnable image. Acceptance: second release build shows `CACHED` layers; `build-and-test` reuses the last release's layers; a build with no `:buildcache` succeeds. **Open decisions:** exact `--cache-from` / `--cache-to` flags, and how the default-builder `docker build` imports a registry cache.
+
+## Files to Change
+
+- `docs/agents/specs/image-cache-agents.md` — new.
+- `docs/agents/specs/image-cache-dockerfile.md` — new.
+- `docs/agents/specs/image-cache-reproducible.md` — new.
+- `docs/agents/specs/image-cache-registry-cache.md` — new.
