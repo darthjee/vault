@@ -2,11 +2,13 @@
 # Usage: scripts/ci/setup_buildx.sh
 # CI-only. Registers QEMU binfmt handlers for arm64 (pinned
 # tonistiigi/binfmt image) and creates/selects a docker-container buildx
-# builder named vault-builder, so `docker buildx build` can target
+# builder named vault-builder (pinned moby/buildkit image, which supports
+# rewrite-timestamp and SOURCE_DATE_EPOCH), so `docker buildx build` can target
 # linux/amd64 and linux/arm64. Reuses the builder when it already exists.
 set -euo pipefail
 
 BINFMT_IMAGE="${BINFMT_IMAGE:-tonistiigi/binfmt:qemu-v10.2.3}"
+BUILDKIT_IMAGE="${BUILDKIT_IMAGE:-moby/buildkit:v0.33.1}"
 BUILDER="${BUILDER:-vault-builder}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -19,8 +21,9 @@ if docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
   echo "setup-buildx: reusing builder $BUILDER"
   docker buildx use "$BUILDER"
 else
-  echo "setup-buildx: creating builder $BUILDER"
-  docker buildx create --name "$BUILDER" --driver docker-container --use
+  echo "setup-buildx: creating builder $BUILDER ($BUILDKIT_IMAGE)"
+  docker buildx create --name "$BUILDER" --driver docker-container \
+    --driver-opt "image=$BUILDKIT_IMAGE" --use
 fi
 
 docker buildx inspect --bootstrap "$BUILDER"

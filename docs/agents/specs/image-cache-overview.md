@@ -58,7 +58,18 @@ file in the same PR.
   | `build-and-release` | `docker-hub` | yes | yes, `mode=max` |
 
   PR builds never write the cache. No new CircleCI context is added.
-- **`SOURCE_DATE_EPOCH`** = timestamp of the last commit: `git log -1 --format=%ct`.
+- **`SOURCE_DATE_EPOCH`** = `0` (the Unix epoch), fixed. Every build entry point sets it,
+  defaulting to `0` with an env override (`SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"`). A
+  per-commit epoch (`git log -1 --format=%ct`) was dropped: on a cache miss it changes every
+  layer whose timestamps it clamps, so unchanged content would still get new digests. Builds no
+  longer need git metadata.
+- **Cache-bust build arg:** `APK_REFRESH`, format `YYYY-MM` (UTC month, `date -u +%Y-%m` by
+  default, overridable). A new value rebuilds the `apk add` layer and every later layer.
+- **Builder:** every build (`make build-image`, the tests, releases,
+  `scripts/check_reproducible.sh`) uses the `docker-container` builder `vault-builder`
+  (override: `BUILDER`), BuildKit pinned to `moby/buildkit:v0.33.1` (override:
+  `BUILDKIT_IMAGE`). Details in
+  [image-cache-reproducible.md → Decisions](image-cache-reproducible.md#decisions).
 - **Scripts agent:** `scripts` owns every top-level `scripts/*.sh` and `test/scripts/`; the path
   decides the owner. Details in [image-cache-agents.md](image-cache-agents.md).
 - **`Dockerfile` layer order:** least to most frequently changing; `COPY build/vault` is the last
@@ -86,9 +97,10 @@ file in the same PR.
 
 ## Security
 
-- **Stale `apk` packages.** A cached `apk add` layer would never pick up security fixes. A
-  cache-bust knob is required; its form is decided in #69
-  (see [image-cache-reproducible.md → Open decisions](image-cache-reproducible.md#open-decisions)).
+- **Stale `apk` packages.** A cached `apk add` layer would never pick up security fixes. The
+  `APK_REFRESH` build arg (UTC month by default) rebuilds it once a month; set it to a new value
+  to pick up an urgent fix sooner
+  (see [image-cache-reproducible.md → Decisions](image-cache-reproducible.md#decisions)).
 - **No cache poisoning.** PR builds never write the cache. Only `build-and-release`, which runs
   with the `docker-hub` context on release tags, can push `:buildcache`.
 
@@ -104,7 +116,7 @@ touches how it is built.
 | [image-cache-overview.md](image-cache-overview.md) | This file: goal, decision, shared contracts, sequencing, compatibility, security. | every sub-issue | Final |
 | [image-cache-agents.md](image-cache-agents.md) | The `scripts` agent, what `automation` keeps, docs to update. | #66 | Final |
 | [image-cache-dockerfile.md](image-cache-dockerfile.md) | Target layer order, permissions that must not change. | #68 | Final |
-| [image-cache-reproducible.md](image-cache-reproducible.md) | `SOURCE_DATE_EPOCH` / `rewrite-timestamp`, `apk` layer, cache-bust knob, digest check. | #69 | Goals + acceptance + open decisions |
+| [image-cache-reproducible.md](image-cache-reproducible.md) | `SOURCE_DATE_EPOCH` / `rewrite-timestamp`, `apk` layer, cache-bust knob, digest check. | #69 | Final |
 | [image-cache-registry-cache.md](image-cache-registry-cache.md) | Who imports / exports `:buildcache`, fallbacks, `DOCKERHUB_DESCRIPTION.md` note. | #70 | Goals + acceptance + contracts + open decisions |
 
 The clean-up sub-issue (#71) has no file; it is driven by `docs/agents/specs.md`.
