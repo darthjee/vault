@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 # Usage: [SOURCE_DATE_EPOCH=0] [APK_REFRESH=YYYY-MM] [DOCKER_VERSION=...] \
+#          [BUILDER=vault-builder] [BUILDKIT_IMAGE=moby/buildkit:v0.33.1] \
 #          scripts/check_reproducible.sh
 # Manual check only: it is NOT run in CI (two full no-cache builds).
+# Builds with the docker-container buildx builder $BUILDER (same defaults as
+# the Makefile), creating it from $BUILDKIT_IMAGE when it does not exist: the
+# default `docker` driver on the classic image store ignores
+# rewrite-timestamp, so the check would always report differences there.
 # Builds the image twice with --no-cache, the same SOURCE_DATE_EPOCH (default
 # 0), the same APK_REFRESH (default: current UTC month, `date -u +%Y-%m`) and
 # rewrite-timestamp=true, loading the results as vault-repro-check:a and
@@ -18,6 +23,8 @@ cd "$ROOT"
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-0}"
 export SOURCE_DATE_EPOCH
 APK_REFRESH="${APK_REFRESH:-$(date -u +%Y-%m)}"
+BUILDER="${BUILDER:-vault-builder}"
+BUILDKIT_IMAGE="${BUILDKIT_IMAGE:-moby/buildkit:v0.33.1}"
 CHECK_IMAGE="vault-repro-check"
 TAG_A="$CHECK_IMAGE:a"
 TAG_B="$CHECK_IMAGE:b"
@@ -29,6 +36,8 @@ main() {
     scripts/bundle_cli.sh
   fi
 
+  ensure_builder
+
   trap _cleanup EXIT
   build_image "$TAG_A"
   build_image "$TAG_B"
@@ -38,10 +47,22 @@ main() {
   compare_layers "$layers_a" "$layers_b"
 }
 
+# Creates the $BUILDER docker-container builder when it does not exist yet.
+ensure_builder() {
+  if docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "check-reproducible: creating builder $BUILDER ($BUILDKIT_IMAGE)"
+  docker buildx create --name "$BUILDER" --driver docker-container \
+    --driver-opt "image=$BUILDKIT_IMAGE"
+}
+
 # Builds the image with no cache and loads it under the given tag.
 build_image() {
   local tag="$1"
   local args=(
+    --builder "$BUILDER"
     --no-cache
     --build-arg "APK_REFRESH=$APK_REFRESH"
     --output "type=docker,rewrite-timestamp=true"

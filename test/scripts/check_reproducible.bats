@@ -21,7 +21,8 @@ setup() {
 
   SCRIPT="$WORK/scripts/check_reproducible.sh"
   LAYERS='["sha256:aaa","sha256:bbb","sha256:ccc"]'
-  unset SOURCE_DATE_EPOCH APK_REFRESH DOCKER_VERSION DOCKER_STUB_STATUS DOCKER_STUB_BUILD_STATUS
+  unset SOURCE_DATE_EPOCH APK_REFRESH DOCKER_VERSION BUILDER BUILDKIT_IMAGE \
+    DOCKER_STUB_STATUS DOCKER_STUB_BUILD_STATUS DOCKER_STUB_BUILDER_INSPECT_STATUS
 }
 
 run_check() {
@@ -76,9 +77,9 @@ build_calls() {
   run build_calls
   assert_equal "${#lines[@]}" 2
   assert_equal "${lines[0]}" \
-    "buildx build --no-cache --build-arg APK_REFRESH=$month --output type=docker,rewrite-timestamp=true -t vault-repro-check:a ."
+    "buildx build --builder vault-builder --no-cache --build-arg APK_REFRESH=$month --output type=docker,rewrite-timestamp=true -t vault-repro-check:a ."
   assert_equal "${lines[1]}" \
-    "buildx build --no-cache --build-arg APK_REFRESH=$month --output type=docker,rewrite-timestamp=true -t vault-repro-check:b ."
+    "buildx build --builder vault-builder --no-cache --build-arg APK_REFRESH=$month --output type=docker,rewrite-timestamp=true -t vault-repro-check:b ."
   run sort -u "$DOCKER_STUB_EPOCH_LOG"
   assert_output "0"
 }
@@ -91,9 +92,9 @@ build_calls() {
   run build_calls
   assert_equal "${#lines[@]}" 2
   assert_equal "${lines[0]}" \
-    "buildx build --no-cache --build-arg APK_REFRESH=2020-01 --output type=docker,rewrite-timestamp=true -t vault-repro-check:a --build-arg DOCKER_VERSION=27.0.0 ."
+    "buildx build --builder vault-builder --no-cache --build-arg APK_REFRESH=2020-01 --output type=docker,rewrite-timestamp=true -t vault-repro-check:a --build-arg DOCKER_VERSION=27.0.0 ."
   assert_equal "${lines[1]}" \
-    "buildx build --no-cache --build-arg APK_REFRESH=2020-01 --output type=docker,rewrite-timestamp=true -t vault-repro-check:b --build-arg DOCKER_VERSION=27.0.0 ."
+    "buildx build --builder vault-builder --no-cache --build-arg APK_REFRESH=2020-01 --output type=docker,rewrite-timestamp=true -t vault-repro-check:b --build-arg DOCKER_VERSION=27.0.0 ."
   run sort -u "$DOCKER_STUB_EPOCH_LOG"
   assert_output "42"
 }
@@ -114,4 +115,49 @@ build_calls() {
   run_check
   assert_success
   assert [ -x "$WORK/build/vault" ]
+}
+
+@test "an existing builder is reused, not created" {
+  docker_stub_inspect vault-repro-check:a "$LAYERS"
+  docker_stub_inspect vault-repro-check:b "$LAYERS"
+  run_check
+  assert_success
+  run grep -cx 'buildx inspect vault-builder' "$DOCKER_STUB_LOG"
+  assert_output "1"
+  run grep -c '^buildx create ' "$DOCKER_STUB_LOG"
+  assert_output "0"
+}
+
+@test "a missing builder is created with the pinned BuildKit image before building" {
+  docker_stub_inspect vault-repro-check:a "$LAYERS"
+  docker_stub_inspect vault-repro-check:b "$LAYERS"
+  DOCKER_STUB_BUILDER_INSPECT_STATUS=1 run_check
+  assert_success
+  assert_line "check-reproducible: creating builder vault-builder (moby/buildkit:v0.33.1)"
+  run grep -n '^buildx ' "$DOCKER_STUB_LOG"
+  assert_equal "${lines[0]}" "1:buildx inspect vault-builder"
+  assert_equal "${lines[1]}" \
+    "2:buildx create --name vault-builder --driver docker-container --driver-opt image=moby/buildkit:v0.33.1"
+  assert_equal "${lines[2]}" \
+    "3:buildx build --builder vault-builder --no-cache --build-arg APK_REFRESH=$(date -u +%Y-%m) --output type=docker,rewrite-timestamp=true -t vault-repro-check:a ."
+}
+
+@test "BUILDER and BUILDKIT_IMAGE overrides are used to create and build" {
+  docker_stub_inspect vault-repro-check:a "$LAYERS"
+  docker_stub_inspect vault-repro-check:b "$LAYERS"
+  BUILDER=other-builder BUILDKIT_IMAGE=moby/buildkit:v0.1.0 DOCKER_STUB_BUILDER_INSPECT_STATUS=1 run_check
+  assert_success
+  run grep -cx 'buildx create --name other-builder --driver docker-container --driver-opt image=moby/buildkit:v0.1.0' "$DOCKER_STUB_LOG"
+  assert_output "1"
+  run build_calls
+  assert_equal "${#lines[@]}" 2
+  assert_line --index 0 --partial "buildx build --builder other-builder --no-cache "
+  assert_line --index 1 --partial "buildx build --builder other-builder --no-cache "
+}
+
+@test "a failing builder creation exits non-zero without building" {
+  DOCKER_STUB_BUILDER_INSPECT_STATUS=1 DOCKER_STUB_STATUS=3 run_check
+  assert_failure 3
+  run grep -c '^buildx build ' "$DOCKER_STUB_LOG"
+  assert_output "0"
 }

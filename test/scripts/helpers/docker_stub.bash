@@ -9,8 +9,9 @@
 # - `docker image inspect ... TAG` prints the output registered for TAG with
 #   docker_stub_inspect (nothing when none was registered).
 # - Exit codes, from env vars (read at call time):
-#     docker buildx build -> $DOCKER_STUB_BUILD_STATUS (default $DOCKER_STUB_STATUS)
-#     any other call      -> $DOCKER_STUB_STATUS       (default 0)
+#     docker buildx build   -> $DOCKER_STUB_BUILD_STATUS (default $DOCKER_STUB_STATUS)
+#     docker buildx inspect -> $DOCKER_STUB_BUILDER_INSPECT_STATUS (default $DOCKER_STUB_STATUS)
+#     any other call        -> $DOCKER_STUB_STATUS       (default 0)
 
 # Creates the stub and puts it first on PATH.
 # Sets DOCKER_STUB_BIN, DOCKER_STUB_LOG, DOCKER_STUB_EPOCH_LOG and
@@ -32,6 +33,7 @@ printf '%s\\n' "\$*" >>"\$DOCKER_STUB_LOG"
 printf '%s\\n' "\${SOURCE_DATE_EPOCH-<unset>}" >>"\$DOCKER_STUB_EPOCH_LOG"
 case "\${1:-} \${2:-}" in
   "buildx build") exit "\${DOCKER_STUB_BUILD_STATUS:-\${DOCKER_STUB_STATUS:-0}}" ;;
+  "buildx inspect") exit "\${DOCKER_STUB_BUILDER_INSPECT_STATUS:-\${DOCKER_STUB_STATUS:-0}}" ;;
   "image inspect")
     file="\$DOCKER_STUB_INSPECT_DIR/\$(printf '%s' "\${!#}" | tr ':/' '__')"
     if [ -f "\$file" ]; then

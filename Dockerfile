@@ -4,8 +4,10 @@ FROM docker:${DOCKER_VERSION}-dind
 # Cache-bust for the apk layer: a new value (monthly by default, YYYY-MM, computed by
 # scripts/release.sh / make build-image) rebuilds this layer and every later one, so bash
 # security fixes are picked up. The default keeps a plain `docker build` working.
+# --no-logfile: apk otherwise writes the current time to /var/log/apk.log, which changes
+# the layer digest on every build and breaks reproducibility.
 ARG APK_REFRESH=unset
-RUN echo "apk refresh: ${APK_REFRESH}" && apk add --no-cache bash
+RUN echo "apk refresh: ${APK_REFRESH}" && apk add --no-cache --no-logfile bash
 
 # Created first: COPY --chmod would also apply 644 to the directories it creates.
 RUN mkdir -p -m 0755 /usr/local/share/vault /usr/local/share/vault/completion
