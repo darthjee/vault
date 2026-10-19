@@ -43,6 +43,7 @@ When a task spans multiple agents:
 | [Folder Structure](../../docs/agents/folder-structure.md) | Top-level directory layout and the role of each folder. |
 | [Architecture](../../docs/agents/architecture.md) | Image layout, libraries, configuration. |
 | [Flow](../../docs/agents/flow.md) | Runtime flow of the container. |
+| [Release](../../docs/agents/release.md) | Image build and release: layer order, reproducible layers, builder, registry cache, cache-bust knob. |
 | [Contributing](../../docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](../../docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](../../docs/agents/issues/) | Detailed specs for open issues. |

@@ -22,6 +22,7 @@ host ──-p 8080:80──▶ Vault container (dockerd + compose)
 - `VOLUME /var/lib/docker` (required: overlay2 cannot run on top of the container's overlay filesystem).
 - `WORKDIR /vault`, `EXPOSE 80` (convention only).
 - Built for `linux/amd64` and `linux/arm64` by the release.
+- Layers are ordered by change frequency, reproducible (fixed `SOURCE_DATE_EPOCH`, `rewrite-timestamp=true`) and cached in `darthjee/vault:buildcache`; see [Release](release.md).
 
 ### Image paths
 
@@ -178,6 +179,7 @@ See the [Security guide](../guides/vault/security.md) for the risks of `--privil
 
 - The inner daemon listens on the unix socket only; it never listens on TCP. The smoke test asserts that nothing listens on 2375.
 - The container runs as root; see the [Security guide](../guides/vault/security.md).
+- Build cache: only release builds write `darthjee/vault:buildcache` (PR builds never do), and `APK_REFRESH` bounds how stale the `apk` packages get; see [Release → Security](release.md#security).
 
 ## Testing
 

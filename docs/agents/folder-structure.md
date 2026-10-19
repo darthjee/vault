@@ -9,7 +9,7 @@
 | `cli/` | The host-side `vault` CLI: `bin/vault`, `lib/*.sh`, `completion/vault.bash`, `completion/_vault`. Owner `cli`. See [cli/](#cli). |
 | `install.sh` | The `curl \| bash` installer of the CLI (published as a release asset). Owner `cli`. |
 | `test/` | Bats tests and fixtures. See [test/](#test). |
-| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `check_guides_links.sh`, `bundle_cli.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh`, `release.sh`, `github_release.sh`, `ci/`. See [scripts/](#scripts). |
+| `scripts/` | Repo scripts for development and CI: `bump_version.sh`, `check_tag_version.sh`, `check_guides_links.sh`, `check_reproducible.sh`, `bundle_cli.sh`, `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh`, `release.sh`, `github_release.sh`, `ci/`. See [scripts/](#scripts). |
 | `build/` | Generated, git-ignored: `build/vault` (the CLI bundle) and `build/github-release/` (release assets staged by `github_release.sh`). Owner `automation`. |
 | `.circleci/` | CI and release pipeline. |
 | `Makefile` | The only entry point for developers and CI. See [Makefile](#makefile). |
@@ -69,14 +69,15 @@ executable `build/vault`.
 - CI-only steps live in `scripts/ci/`:
   - `docker_login.sh` — `docker login` to Docker Hub.
   - `install_gh.sh` — installs the GitHub CLI from cli.github.com (apt) for the `github-release` job.
-  - `setup_buildx.sh` — QEMU / buildx setup for multi-platform builds.
+  - `setup_buildx.sh` — QEMU / buildx setup for multi-platform builds (creates or selects the `vault-builder` builder).
   - `update_description.sh` — fetches `docker_hub.sh` (pinned) and pushes `DOCKERHUB_DESCRIPTION.md`.
 - Build script: `bundle_cli.sh` (builds `build/vault` from `cli/bin/vault` and `cli/lib/*.sh`).
-- Release scripts: `release.sh` (multi-arch build and push), `github_release.sh` (GitHub release of the
+- Release scripts: `release.sh` (multi-arch build and push, imports and exports the registry layer cache, see [release.md](release.md)), `github_release.sh` (GitHub release of the
   CLI assets with `gh`).
 - Test scripts: `test.sh` (bats), `test_image.sh` (smoke test), `test_cli_e2e.sh` (CLI end-to-end test),
   `check_guides_links.sh [ROOT [BOUND]]` (link check of the guides and agent docs; `ROOT` defaults to
   `docs/guides`, `BOUND` defaults to `ROOT` and relative links must stay inside it).
+- Manual check: `check_reproducible.sh` (builds the image twice with `--no-cache` and compares the layer digests; not run in CI, see [release.md](release.md#checking-reproducibility)).
 - Everything under `scripts/` is shellchecked by `make lint`.
 
 ## Makefile
@@ -84,7 +85,8 @@ executable `build/vault`.
 | Target | Behaviour |
 |--------|-----------|
 | `bundle-cli` | Builds the CLI bundle `build/vault` (`scripts/bundle_cli.sh`). |
-| `build-image` | Depends on `bundle-cli` and `buildx-builder`, then `docker buildx build`s the image as `IMAGE` on the `vault-builder` builder (`--output type=docker`, loaded locally), importing the registry layer cache `BUILD_CACHE` when set and passing `--build-arg DOCKER_VERSION` when set. Never exports the cache. |
+| `buildx-builder` | Creates the `BUILDER` (`vault-builder`) `docker-container` builder from `BUILDKIT_IMAGE` when it does not exist yet. |
+| `build-image` | Depends on `bundle-cli` and `buildx-builder`, then `docker buildx build`s the image as `IMAGE` on the `BUILDER` builder (`--output type=docker,rewrite-timestamp=true`, loaded locally) with `SOURCE_DATE_EPOCH` (env, default `0`) and `--build-arg APK_REFRESH`, importing the registry layer cache `BUILD_CACHE` when set and passing `--build-arg DOCKER_VERSION` when set. Never exports the cache. See [release.md](release.md). |
 | `lint` | shellcheck over `source/`, `scripts/`, `cli/` and `test/`, plus `cli/bin/vault`, `cli/completion/vault.bash` and `install.sh` (`scripts/lint.sh`). |
 | `test` | Builds the CLI bundle, then bats over `test/lib/`, `test/cli/`, `test/install/` and `test/scripts/` on `BATS_IMAGE`, `test/cli/` and `test/install/` again on the bash 3.2 image, and `zsh -n cli/completion/_vault` (`scripts/test.sh`). |
 | `test-docs` | Checks the links of every `*.md` under `docs/guides/` (`scripts/check_guides_links.sh`) and under `docs/agents/` (`scripts/check_guides_links.sh docs/agents .`), on the host. Guides: relative links stay inside the tree. Agent docs: relative links stay inside the repo. Both: relative links resolve (anchors included), other links are absolute `https://`, no reference-style links, no images; code is ignored. One `test-docs: OK (<n> file(s))` line per tree. |
@@ -92,7 +94,7 @@ executable `build/vault`.
 | `test-cli-e2e` | Depends on `build-image`, then runs `scripts/test_cli_e2e.sh` (CLI end-to-end test). |
 | `bump-version VERSION=X.Y.Z` | Updates `VERSION`, the README version line and the `VAULT_VERSION` lines of `cli/bin/vault` and `install.sh`, and the `**Vault version:**` line of `docs/guides/vault.md` (`scripts/bump_version.sh`). |
 | `check-version-tag TAG=X.Y.Z` | Fails unless the tag matches `VERSION`, the README, the `VAULT_VERSION` lines and the `**Vault version:**` line of `docs/guides/vault.md` (`scripts/check_tag_version.sh`). |
-| `release TAG=x` | Depends on `bundle-cli`; multi-arch build and push (`scripts/release.sh`). Fails fast without `TAG`. |
+| `release TAG=x` | Depends on `bundle-cli`; multi-arch build and push (`scripts/release.sh`), importing `RELEASE_IMAGE:buildcache` and exporting it (`mode=max`) when `PUSH=true`. Passes `APK_REFRESH`. Fails fast without `TAG`. See [release.md](release.md). |
 | `github-release TAG=X.Y.Z` | Builds the CLI bundle and `SHA256SUMS`, creates (or reuses) the GitHub release and uploads the assets (`scripts/github_release.sh`). Fails fast without `TAG`. |
 | `update-description` | Pushes `DOCKERHUB_DESCRIPTION.md` to Docker Hub (`scripts/ci/update_description.sh`). |
 | `ci-release-setup` | CI-only: buildx setup and Docker Hub login. |
@@ -109,4 +111,8 @@ executable `build/vault`.
 | `RELEASE_IMAGE` | `darthjee/vault` | Repository `release` pushes to. |
 | `PUSH` | `true` | Whether `release` pushes (set `false` to build only). |
 | `DOCKER_VERSION` | unset (Dockerfile default) | Base image version passed as a build arg. |
+| `BUILDER` | `vault-builder` | `docker-container` buildx builder used by `build-image` (created by `buildx-builder`). |
+| `BUILDKIT_IMAGE` | `moby/buildkit:v0.33.1` | BuildKit image `buildx-builder` creates `BUILDER` from. |
+| `APK_REFRESH` | UTC month (`date -u +%Y-%m`) | Cache-bust build arg of the `apk` layer, passed by `build-image` and `release`. |
+| `SOURCE_DATE_EPOCH` | `0` (env) | Layer timestamp of reproducible builds; read from the environment by `build-image`, not a make variable. |
 | `BUILD_CACHE` | `darthjee/vault:buildcache` | Registry layer cache `build-image` imports (`--cache-from`); empty (`BUILD_CACHE=`) disables the import. |
