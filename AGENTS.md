@@ -235,5 +235,6 @@ Specialist sub-agents live in [`.claude/agents/`](.claude/agents/):
 | `architect` | Coordinator: root-level files (except `install.sh`), `.github/`, `.claude/`, cross-cutting decisions; fallback for `docs/agents/` |
 | `product-owner` | `docs/agents/` (incl. `specs/`), `docs/guides/` — issue specs, plans, project documentation, user guides |
 | `dev` | `Dockerfile`, `source/` (incl. `source/bin/install.sh`), `test/lib/`, `test/fixture/` and the image tests — the image, the entrypoint, the in-image install entry and their tests |
-| `automation` | `.circleci/`, `Makefile`, `scripts/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `test/scripts/`, `build/` — build, release, publishing |
+| `automation` | `.circleci/`, `Makefile`, `scripts/ci/`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/` — CI, build, release design and publishing |
+| `scripts` | `scripts/*.sh` (not `scripts/ci/`), `test/scripts/` — repo shell scripts and their bats tests |
 | `cli` | `cli/` (`bin/vault`, `lib/*.sh`, `completion/*`), root `install.sh`, `test/cli/`, `test/install/` — the `vault` CLI and its installer |
