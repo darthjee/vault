@@ -6,10 +6,17 @@ IMAGE ?= darthjee/vault:dev
 SMOKE_TIMEOUT ?= 120
 RELEASE_IMAGE ?= darthjee/vault
 PUSH ?= true
+# Monthly cache-bust for the apk layer (UTC year-month).
+APK_REFRESH ?= $(shell date -u +%Y-%m)
+# docker-container buildx builder (pinned BuildKit) shared by build-image and
+# the release jobs. The default `docker` driver on the classic image store
+# ignores rewrite-timestamp, so reproducible builds need this builder.
+BUILDER ?= vault-builder
+BUILDKIT_IMAGE ?= moby/buildkit:v0.33.1
 
-export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH
+export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH BUILDER BUILDKIT_IMAGE
 
-.PHONY: lint test test-docs bundle-cli bump-version check-version-tag build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup ci-github-release-setup
+.PHONY: lint test test-docs bundle-cli bump-version check-version-tag buildx-builder build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup ci-github-release-setup
 
 lint:
 	scripts/lint.sh
@@ -30,8 +37,21 @@ bump-version:
 check-version-tag:
 	$(if $(TAG),scripts/check_tag_version.sh $(TAG),$(error TAG is required, e.g. make check-version-tag TAG=X.Y.Z))
 
-build-image: bundle-cli
-	docker build $(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) -t $(IMAGE) .
+# Creates the $(BUILDER) docker-container builder when it does not exist yet.
+buildx-builder:
+	@docker buildx inspect $(BUILDER) >/dev/null 2>&1 || \
+		docker buildx create --name $(BUILDER) --driver docker-container \
+			--driver-opt image=$(BUILDKIT_IMAGE)
+
+# Reproducible build: fixed SOURCE_DATE_EPOCH (default 0, env override) and
+# rewrite-timestamp=true, so layer digests depend only on content. The image
+# is still loaded into the local store as $(IMAGE) (type=docker output).
+build-image: bundle-cli buildx-builder
+	SOURCE_DATE_EPOCH=$${SOURCE_DATE_EPOCH:-0} docker buildx build --builder $(BUILDER) \
+		--output type=docker,rewrite-timestamp=true \
+		$(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) \
+		--build-arg APK_REFRESH=$(APK_REFRESH) \
+		-t $(IMAGE) .
 
 test-image: build-image
 	scripts/test_image.sh
@@ -44,7 +64,7 @@ update-description:
 
 # require-tag is listed before bundle-cli so a missing TAG fails before any build work.
 release: require-tag bundle-cli
-	scripts/release.sh $(TAG)
+	$(if $(APK_REFRESH),APK_REFRESH=$(APK_REFRESH)) scripts/release.sh $(TAG)
 
 # require-tag first so a missing TAG fails before any build work.
 # The script builds the CLI bundle itself.
