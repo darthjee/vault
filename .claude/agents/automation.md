@@ -18,7 +18,7 @@ You own:
 - `test/bash32/` — the bash 3.2 test image (`FROM bash:3.2` + pinned bats-core)
 - `build/` — the git-ignored output of `scripts/bundle_cli.sh` (`build/vault`), including its `.gitignore` entry
 
-You also own the **release / buildx design** (platforms, tags, cache and reproducibility flags) implemented by `scripts/release.sh`. The file itself is owned by `scripts`: state the design and delegate changes to top-level `scripts/*.sh` to `scripts`.
+You also own the **release / buildx design** (platforms, tags, cache and reproducibility flags), documented in `docs/agents/release.md` and implemented by `scripts/release.sh`. The file itself is owned by `scripts`: state the design and delegate changes to top-level `scripts/*.sh` to `scripts`.
 
 Do NOT touch `scripts/*.sh`, `test/scripts/` (owned by `scripts`), `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `install.sh`, `docs/agents/` or other root-level files.
 
@@ -49,3 +49,4 @@ circleci config validate      # if the CircleCI CLI is installed
 - Credentials only from restricted CircleCI contexts: `DOCKER_HUB_USERNAME`, `DOCKER_HUB_PASSWORD`
   (context `docker-hub`), `GITHUB_TOKEN` (context `github`, only for `github-release`).
 - `release` and other publishing targets fail fast when `TAG` is unset.
+- Keep the cache and reproducibility rules of `docs/agents/release.md` (PR builds never export the cache).

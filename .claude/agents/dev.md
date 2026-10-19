@@ -39,3 +39,4 @@ make test-image  # build the image and run the smoke test (needs a privileged Do
 - Follow `docs/agents/contributing.md`: libraries only define functions; only the entrypoint reads environment variables; functions prefixed by module; public before `_private`.
 - Follow the runtime flow in `docs/agents/flow.md` and the design in `AGENTS.md` (`/vault` workdir, `COMPOSE_UP_ARGS`, `VAULT_DOCKERD_TIMEOUT`, passthrough args, compose exit code, signal handling).
 - Wrap external commands (`docker`, `dockerd`) so bats tests can stub them.
+- Keep the `Dockerfile` ordered from least to most frequently changing, with `COPY build/vault` as the last content layer, and keep it reproducible (see `docs/agents/release.md`).

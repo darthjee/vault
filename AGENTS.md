@@ -125,7 +125,9 @@ Modelled after the `navi` project:
   `scripts/bump_version.sh X.Y.Z` updates all of them.
 - `build-and-release`: `make ci-release-setup` (buildx/QEMU setup + `docker login`), then
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
-  `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`.
+  `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`; imports
+  and exports the `darthjee/vault:buildcache` registry cache.
+- Image build rules (layer order, reproducibility, cache): see [Release](docs/agents/release.md).
 - `update-description`: pushes `DOCKERHUB_DESCRIPTION.md` via `darthjee/scripts`' `docker_hub.sh`.
 - `github-release`: `make ci-github-release-setup` (installs the `gh` CLI from GitHub's apt
   repository, `scripts/ci/install_gh.sh`), then `make github-release TAG=$CIRCLE_TAG`
@@ -183,6 +185,7 @@ All project documentation lives under [`docs/agents/`](docs/agents/):
 | [Folder Structure](docs/agents/folder-structure.md) | Top-level directory layout and the role of each folder. |
 | [Architecture](docs/agents/architecture.md) | Source layout, modules, code style, and implementation guidelines. |
 | [Flow](docs/agents/flow.md) | Main runtime flow of the application. |
+| [Release](docs/agents/release.md) | Image build and release: layer order, reproducible layers, builder, registry cache, cache-bust knob. |
 | [Contributing](docs/agents/contributing.md) | Commit guidelines, PR standards, code organization, and refactoring rules. |
 | [Plans](docs/agents/plans/) | Implementation plans for ongoing or upcoming features. |
 | [Issues](docs/agents/issues/) | Detailed specs for open issues. |

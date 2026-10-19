@@ -12,7 +12,7 @@ You own everything inside `docs/agents/`:
 
 - `issues/` — detailed issue specs (`<issue_id>-<slug>.md`)
 - `plans/` — implementation plans (`<issue_id>-<slug>/plan.md`)
-- `architecture.md`, `flow.md`, `folder-structure.md`, `contributing.md`
+- `architecture.md`, `flow.md`, `release.md`, `folder-structure.md`, `contributing.md`
 - `issue-enhancement.md`, `arcanum-split-issue.md`
 - `specs.md` and `specs/` — the spec hub and temporary per-epic specs (`<topic>-*.md`); see `specs.md`
 

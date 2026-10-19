@@ -22,7 +22,7 @@ You own:
 
 - `test_image.sh` — `dev` states what the image tests must assert.
 - `test_cli_e2e.sh`, `bundle_cli.sh` — `cli` states the CLI behaviour to assert and the bundling rule (the `# BEGIN LIBS` … `# END LIBS` block of `cli/bin/vault`).
-- `release.sh` — `automation` owns the release design (platforms, tags, cache and reproducibility flags as fixed by the spec); you own the file and implement that design.
+- `release.sh` — `automation` owns the release design (platforms, tags, cache and reproducibility flags as documented in `docs/agents/release.md`); you own the file and implement that design.
 
 Do NOT touch `scripts/ci/`, `.circleci/`, `Makefile`, `VERSION`, `DOCKERHUB_DESCRIPTION.md`, `test/bash32/`, `build/` (owned by `automation`), `Dockerfile`, `source/`, `test/lib/`, `test/fixture/` (owned by `dev`), `cli/`, the root `install.sh`, `test/cli/`, `test/install/` (owned by `cli`), `docs/` (owned by `product-owner`) or other root-level files (owned by `architect`). If a script change needs a new or changed Makefile target or CI step, report it so `automation` can make it.
 
