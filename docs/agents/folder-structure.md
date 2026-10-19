@@ -58,10 +58,12 @@ executable `build/vault`.
 | `cli/` | Bats tests for the CLI (`cli/bin/vault`, `cli/lib/`, completion); `helpers/` holds the docker stub and CLI loaders. | `cli` |
 | `install/` | Bats tests for the root `install.sh`; `helpers/` holds its stub. | `cli` |
 | `bash32/` | `Dockerfile` of the bash 3.2 bats image (`BASH32_TEST_IMAGE`) that also runs `test/cli/` and `test/install/`. | `automation` |
-| `scripts/` | Bats tests for repo scripts: `scripts/github_release.sh` (stub `gh` in `helpers/`), `scripts/check_guides_links.sh` (on fixture guide trees), `scripts/bump_version.sh` and `scripts/check_tag_version.sh`. | `automation` |
+| `scripts/` | Bats tests for repo scripts: `scripts/github_release.sh` (stub `gh` in `helpers/`), `scripts/check_guides_links.sh` (on fixture guide trees), `scripts/bump_version.sh` and `scripts/check_tag_version.sh`. | `scripts` |
 
 ## scripts/
 
+- **Owners.** Top-level `scripts/*.sh` are owned by `scripts`; the path decides the owner, even for scripts coupled to another agent's domain.
+- `scripts/ci/` is owned by `automation`.
 - **Make is the only entry point.** Developers and CI call make targets, never scripts directly.
 - A recipe longer than one line moves to `scripts/*.sh`.
 - CI-only steps live in `scripts/ci/`:

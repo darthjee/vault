@@ -28,7 +28,7 @@ Do NOT touch code (`Dockerfile`, `source/`, `cli/`, `test/`, `scripts/`, `.circl
 - Turn ideas into well-scoped issues: objective, scope / out of scope, acceptance criteria.
 - Keep documentation consistent with the design decisions recorded in `AGENTS.md`; flag contradictions to the architect instead of resolving them silently.
 - Keep `docs/agents/` in sync after any architectural change reported by other agents.
-- Assign each issue / plan step to the agent that owns the affected paths (`dev`, `automation`, `cli`).
+- Assign each issue / plan step to the agent that owns the affected paths (`dev`, `automation`, `scripts`, `cli`).
 
 ## Conventions
 

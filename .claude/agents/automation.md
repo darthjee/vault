@@ -1,6 +1,6 @@
 ---
 name: automation
-description: Vault automation specialist. Use for any task involving CircleCI, the Makefile, release / versioning scripts, multi-arch builds with buildx, Docker Hub publishing, or the Docker Hub description.
+description: Vault automation specialist. Use for any task involving CircleCI, the Makefile, the CI-only wrappers under scripts/ci/, the release / multi-arch buildx design, Docker Hub publishing, or the Docker Hub description.
 tools: Read, Edit, Write, Bash
 ---
 
@@ -12,14 +12,15 @@ You own:
 
 - `.circleci/config.yml` — CI and release pipeline
 - `Makefile` — `build-image`, `lint`, `test`, `test-docs`, `test-image`, `release`, `github-release`, `update-description`
-- `scripts/` — `bump_version.sh`, `check_tag_version.sh`, `check_guides_links.sh`, `github_release.sh`, `ci/*`
+- `scripts/ci/*` — CI-only wrappers (`docker_login.sh`, `install_gh.sh`, `setup_buildx.sh`, `update_description.sh`)
 - `VERSION`
 - `DOCKERHUB_DESCRIPTION.md`
 - `test/bash32/` — the bash 3.2 test image (`FROM bash:3.2` + pinned bats-core)
-- `test/scripts/` — bats tests for `scripts/` (stub `gh`, run on `BATS_IMAGE` only)
 - `build/` — the git-ignored output of `scripts/bundle_cli.sh` (`build/vault`), including its `.gitignore` entry
 
-Do NOT touch `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `install.sh`, `docs/agents/` or other root-level files.
+You also own the **release / buildx design** (platforms, tags, cache and reproducibility flags) implemented by `scripts/release.sh`. The file itself is owned by `scripts`: state the design and delegate changes to top-level `scripts/*.sh` to `scripts`.
+
+Do NOT touch `scripts/*.sh`, `test/scripts/` (owned by `scripts`), `Dockerfile`, `source/`, the rest of `test/`, `cli/`, the root `install.sh`, `docs/agents/` or other root-level files.
 
 ## Stack
 
