@@ -91,7 +91,7 @@ EOF
   echo 'See [README](../../README.md).' > "$GUIDES/vault/cli.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault/cli.md: relative link leaves the guides tree: ../../README.md"
+  assert_equal "$stderr" "vault/cli.md: relative link leaves the bound: ../../README.md"
 }
 
 @test "a relative link to a missing file fails" {
@@ -120,21 +120,21 @@ EOF
   echo 'See [x](http://example.com).' > "$GUIDES/vault.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault.md: link must be relative inside the guides or absolute https://: http://example.com"
+  assert_equal "$stderr" "vault.md: link must be relative or absolute https://: http://example.com"
 }
 
 @test "an absolute path fails" {
   echo 'See [x](/etc/hosts).' > "$GUIDES/vault.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault.md: link must be relative inside the guides or absolute https://: /etc/hosts"
+  assert_equal "$stderr" "vault.md: link must be relative or absolute https://: /etc/hosts"
 }
 
 @test "a mailto: link fails" {
   echo 'Mail [me](mailto:someone@example.com).' > "$GUIDES/vault.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault.md: link must be relative inside the guides or absolute https://: mailto:someone@example.com"
+  assert_equal "$stderr" "vault.md: link must be relative or absolute https://: mailto:someone@example.com"
 }
 
 @test "a reference-style definition fails" {
@@ -148,7 +148,7 @@ EOF
   echo '![logo](logo.png)' > "$GUIDES/vault.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault.md: image links are not allowed (guides ship no assets): logo.png"
+  assert_equal "$stderr" "vault.md: image links are not allowed: logo.png"
 }
 
 @test "every problem is reported in one run" {
@@ -159,8 +159,8 @@ EOF
   echo '![logo](https://example.com/logo.png)' >> "$GUIDES/vault.md"
   run_check "$GUIDES"
   assert_failure 1
-  assert_equal "$stderr" "vault.md: image links are not allowed (guides ship no assets): https://example.com/logo.png
-vault/cli.md: link must be relative inside the guides or absolute https://: http://example.com
+  assert_equal "$stderr" "vault.md: image links are not allowed: https://example.com/logo.png
+vault/cli.md: link must be relative or absolute https://: http://example.com
 vault/cli.md: missing file: missing.md
 vault/cli.md: missing anchor: #nope"
 }
@@ -183,4 +183,89 @@ EOF
   run_check "$GUIDES"
   assert_success
   assert_equal "$output" "test-docs: OK (1 file(s))"
+}
+
+# Writes a BOUND tree holding docs/agents/ (the ROOT) and sibling files.
+write_bound_tree() {
+  BOUND="$BATS_TEST_TMPDIR/repo"
+  AGENTS="$BOUND/docs/agents"
+  mkdir -p "$AGENTS/plans" "$BOUND/docs/guides/vault" "$BOUND/scripts"
+  echo 'echo hi' > "$BOUND/scripts/release.sh"
+  cat > "$BOUND/docs/guides/vault/cli.md" <<'MD'
+# CLI
+
+## `.vaultrc` and `.vault.env`
+
+A [broken](http://example.com) link outside ROOT is not scanned.
+MD
+  cat > "$AGENTS/dev.md" <<'MD'
+# Dev
+
+See the [CLI guide](../guides/vault/cli.md), the [guides](../guides/vault/),
+the [release script](../../scripts/release.sh) and the [plans](plans).
+MD
+  echo 'Back to [dev](../dev.md#dev).' > "$AGENTS/plans/plan.md"
+}
+
+@test "a link outside ROOT but inside BOUND passes" {
+  write_bound_tree
+  run_check "$AGENTS" "$BOUND"
+  assert_success
+  assert_equal "$output" "test-docs: OK (2 file(s))"
+  assert_equal "$stderr" ""
+}
+
+@test "without BOUND a link outside ROOT fails" {
+  write_bound_tree
+  run_check "$AGENTS"
+  assert_failure 1
+  assert_equal "$stderr" "dev.md: relative link leaves the bound: ../guides/vault/cli.md
+dev.md: relative link leaves the bound: ../guides/vault/
+dev.md: relative link leaves the bound: ../../scripts/release.sh"
+}
+
+@test "a relative link leaving BOUND fails" {
+  write_bound_tree
+  echo 'See [x](../../../../outside.md).' > "$AGENTS/plans/plan.md"
+  run_check "$AGENTS" "$BOUND"
+  assert_failure 1
+  assert_equal "$stderr" "plans/plan.md: relative link leaves the bound: ../../../../outside.md"
+}
+
+@test "an anchor into a page outside ROOT is verified" {
+  write_bound_tree
+  echo 'See [x](../guides/vault/cli.md#vaultrc-and-vaultenv) and [y](../guides/vault/cli.md#nope).' >> "$AGENTS/dev.md"
+  run_check "$AGENTS" "$BOUND"
+  assert_failure 1
+  assert_equal "$stderr" "dev.md: missing anchor: ../guides/vault/cli.md#nope"
+}
+
+@test "a missing file outside ROOT fails" {
+  write_bound_tree
+  echo 'See [x](../../scripts/missing.sh).' >> "$AGENTS/dev.md"
+  run_check "$AGENTS" "$BOUND"
+  assert_failure 1
+  assert_equal "$stderr" "dev.md: missing file: ../../scripts/missing.sh"
+}
+
+@test "a ROOT outside BOUND fails" {
+  write_bound_tree
+  run_check "$AGENTS" "$BOUND/docs/guides"
+  assert_failure 1
+  assert_equal "$stderr" "test-docs: ROOT must be inside BOUND"
+}
+
+@test "a BOUND equal to ROOT behaves as no BOUND" {
+  write_valid_tree
+  run_check "$GUIDES" "$GUIDES"
+  assert_success
+  assert_equal "$output" "test-docs: OK (2 file(s))"
+}
+
+@test "a relative BOUND resolves against the working directory" {
+  write_bound_tree
+  cd "$BOUND"
+  run_check docs/agents .
+  assert_success
+  assert_equal "$output" "test-docs: OK (2 file(s))"
 }

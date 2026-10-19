@@ -53,11 +53,14 @@ Before a PR is considered complete, all CI checks relevant to the modified parts
 | `cli/`, `install.sh` | `make lint`, `make test`, `make test-cli-e2e` |
 | `scripts/`, `Makefile` | `make lint`, `make test`, `make test-docs` |
 | `docs/guides/` | `make test-docs` |
+| `docs/agents/` | `make test-docs` |
 | `.circleci/` | `circleci config validate` (if the CLI is installed) |
 
 If a new folder is added, its corresponding test and check jobs must be included before merging changes to that folder.
 
 This same process must be followed when **planning how to resolve an issue**: include a final step in the plan that identifies the affected folders and lists the CI commands to run before opening a PR.
+
+Issue and plan files live in `docs/agents/`, so `make test-docs` link-checks them: every relative link must resolve (anchors included). A plan or issue names a file it intends to create in inline code (e.g. `scripts/new_script.sh`) instead of linking it.
 
 ### User Guides
 

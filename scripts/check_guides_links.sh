@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# Usage: scripts/check_guides_links.sh [ROOT]
+# Usage: scripts/check_guides_links.sh [ROOT [BOUND]]
 # Checks the links of every *.md file under ROOT (default: docs/guides under
-# the repository root), so the guides stay portable once copied:
-#   - relative links must resolve to a file inside ROOT, anchors included
-#     (same page "#anchor" or other page "cli.md#vaultrc");
+# the repository root). BOUND (default: ROOT) is the tree relative links may
+# reach; ROOT must be BOUND itself or inside it. With no BOUND the guides
+# stay portable once copied. Rules:
+#   - relative links resolve against the linking file and must point to an
+#     existing file or directory inside BOUND, anchors included (same page
+#     "#anchor" or other page "cli.md#vaultrc"); anchors are checked for
+#     every .md target inside BOUND, pages outside ROOT being parsed on demand;
 #   - every other link must be an absolute https:// URL (http:, file:,
 #     mailto:, absolute paths, ... fail);
 #   - reference-style definitions ("[ref]: target") and image links
@@ -11,25 +15,50 @@
 # Anchor slugs follow GitHub (lowercase, punctuation except "-" and "_"
 # dropped, spaces to "-", duplicates get -1, -2, ... suffixes). Links inside
 # fenced code blocks and inline code are ignored.
-# Prints one "<file>: <message>: <link>" line per problem on stderr and exits
-# 1, otherwise prints "test-docs: OK (<n> file(s))". An empty or missing ROOT
-# passes. Runs on bash 3.2 (macOS) with POSIX awk.
+# Prints one "<file>: <message>: <link>" line per problem on stderr (<file>
+# relative to ROOT, messages such as "missing file", "missing anchor" or
+# "relative link leaves the bound") and exits 1, otherwise prints
+# "test-docs: OK (<n> file(s))". An empty or missing ROOT passes; a ROOT
+# outside BOUND fails with "test-docs: ROOT must be inside BOUND".
+# Runs on bash 3.2 (macOS) with POSIX awk.
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-guides_root="${1:-$ROOT/docs/guides}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+scan_root="${1:-$repo_root/docs/guides}"
+bound="${2:-}"
 
-if [ ! -d "$guides_root" ]; then
+if [ ! -d "$scan_root" ]; then
   echo "test-docs: OK (0 file(s))"
   exit 0
 fi
 
-guides_root="$(cd "$guides_root" && pwd)"
+scan_root="$(cd "$scan_root" && pwd)"
+
+if [ -z "$bound" ]; then
+  bound="$scan_root"
+elif [ -d "$bound" ]; then
+  bound="$(cd "$bound" && pwd)"
+else
+  echo "test-docs: BOUND is not a directory: $bound" >&2
+  exit 1
+fi
+
+# Path of ROOT relative to BOUND, with a trailing "/" (empty when equal).
+if [ "$scan_root" = "$bound" ]; then
+  root_prefix=""
+elif [ "$bound" = "/" ]; then
+  root_prefix="${scan_root#/}/"
+elif [[ "$scan_root" == "$bound"/* ]]; then
+  root_prefix="${scan_root#"$bound"/}/"
+else
+  echo "test-docs: ROOT must be inside BOUND" >&2
+  exit 1
+fi
 
 files=()
 while IFS= read -r file; do
   files+=("${file#./}")
-done < <(cd "$guides_root" && find . -type f -name '*.md' | sort)
+done < <(cd "$scan_root" && find . -type f -name '*.md' | sort)
 
 if [ "${#files[@]}" -eq 0 ]; then
   echo "test-docs: OK (0 file(s))"
@@ -126,10 +155,17 @@ parse_markdown() {
   ' "$1"
 }
 
+# Parses a markdown file inside BOUND into $work_dir/<path>.parsed and
+# $work_dir/<path>.slugs, keyed by its path relative to BOUND.
+# Usage: index_file PATH
+index_file() {
+  mkdir -p "$work_dir/$(dirname "$1")"
+  parse_markdown "$bound/$1" > "$work_dir/$1.parsed"
+  { grep '^H	' "$work_dir/$1.parsed" || true; } | cut -f 2 > "$work_dir/$1.slugs"
+}
+
 for file in "${files[@]}"; do
-  mkdir -p "$work_dir/$(dirname "$file")"
-  parse_markdown "$guides_root/$file" > "$work_dir/$file.parsed"
-  { grep '^H	' "$work_dir/$file.parsed" || true; } | cut -f 2 > "$work_dir/$file.slugs"
+  index_file "$root_prefix$file"
 done
 
 errors=0
@@ -140,9 +176,8 @@ report() {
   errors=$((errors + 1))
 }
 
-# Resolves "." and ".." of a path relative to the guides root, textually
-# (no realpath -m). Prints the normalised path, or fails when it leaves the
-# root.
+# Resolves "." and ".." of a path relative to BOUND, textually (no
+# realpath -m). Prints the normalised path, or fails when it leaves BOUND.
 # Usage: normalise PATH
 normalise() {
   local rest="$1/"
@@ -174,7 +209,7 @@ normalise() {
   printf '%s\n' "$result"
 }
 
-# Checks one link of a guide page.
+# Checks one link of a page under ROOT (FILE is relative to ROOT).
 # Usage: check_link FILE KIND TARGET
 check_link() {
   local file="$1" kind="$2" target="$3"
@@ -182,7 +217,7 @@ check_link() {
 
   case "$kind" in
     IMG)
-      report "$file" "image links are not allowed (guides ship no assets)" "$target"
+      report "$file" "image links are not allowed" "$target"
       return
       ;;
     REF)
@@ -195,7 +230,7 @@ check_link() {
     return
   fi
   if [ -z "$target" ] || [[ "$target" == /* ]] || [[ "$target" =~ ^[A-Za-z][A-Za-z0-9+.-]*: ]]; then
-    report "$file" "link must be relative inside the guides or absolute https://" "$target"
+    report "$file" "link must be relative or absolute https://" "$target"
     return
   fi
 
@@ -207,7 +242,7 @@ check_link() {
   path="${path%%\?*}"
 
   if [ -z "$path" ]; then
-    resolved="$file"
+    resolved="$root_prefix$file"
   else
     dir="$(dirname "$file")"
     if [ "$dir" = "." ]; then
@@ -215,27 +250,31 @@ check_link() {
     else
       dir="$dir/"
     fi
-    if ! resolved="$(normalise "$dir$path")"; then
-      report "$file" "relative link leaves the guides tree" "$target"
+    if ! resolved="$(normalise "$root_prefix$dir$path")"; then
+      report "$file" "relative link leaves the bound" "$target"
       return
     fi
-    if [ -n "$resolved" ] && [ ! -e "$guides_root/$resolved" ]; then
+    if [ -n "$resolved" ] && [ ! -e "$bound/$resolved" ]; then
       report "$file" "missing file" "$target"
       return
     fi
   fi
 
-  if [ -n "$anchor" ] && [[ "$resolved" == *.md ]] && [ -f "$work_dir/$resolved.slugs" ]; then
-    if ! grep -qxF -- "$anchor" "$work_dir/$resolved.slugs"; then
-      report "$file" "missing anchor" "$target"
-    fi
+  if [ -z "$anchor" ] || [[ "$resolved" != *.md ]] || [ ! -f "$bound/$resolved" ]; then
+    return
+  fi
+  if [ ! -f "$work_dir/$resolved.slugs" ]; then
+    index_file "$resolved"
+  fi
+  if ! grep -qxF -- "$anchor" "$work_dir/$resolved.slugs"; then
+    report "$file" "missing anchor" "$target"
   fi
 }
 
 for file in "${files[@]}"; do
   while IFS="	" read -r _ kind target; do
     check_link "$file" "$kind" "$target"
-  done < <(grep '^L	' "$work_dir/$file.parsed" || true)
+  done < <(grep '^L	' "$work_dir/$root_prefix$file.parsed" || true)
 done
 
 if [ "$errors" -gt 0 ]; then
