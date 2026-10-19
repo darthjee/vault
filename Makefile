@@ -13,8 +13,14 @@ APK_REFRESH ?= $(shell date -u +%Y-%m)
 # ignores rewrite-timestamp, so reproducible builds need this builder.
 BUILDER ?= vault-builder
 BUILDKIT_IMAGE ?= moby/buildkit:v0.33.1
+# Registry layer cache written by the release (scripts/release.sh). build-image
+# imports it anonymously (the repository is public) and never exports it.
+# Set it empty (BUILD_CACHE=) to disable the import.
+BUILD_CACHE ?= darthjee/vault:buildcache
+# Literal comma, for use inside $(if ...) arguments.
+comma := ,
 
-export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH BUILDER BUILDKIT_IMAGE
+export SHELLCHECK_IMAGE BATS_IMAGE BASH32_TEST_IMAGE ZSH_IMAGE IMAGE SMOKE_TIMEOUT RELEASE_IMAGE PUSH BUILDER BUILDKIT_IMAGE BUILD_CACHE
 
 .PHONY: lint test test-docs bundle-cli bump-version check-version-tag buildx-builder build-image test-image test-cli-e2e update-description release github-release require-tag ci-release-setup ci-github-release-setup
 
@@ -49,6 +55,7 @@ buildx-builder:
 build-image: bundle-cli buildx-builder
 	SOURCE_DATE_EPOCH=$${SOURCE_DATE_EPOCH:-0} docker buildx build --builder $(BUILDER) \
 		--output type=docker,rewrite-timestamp=true \
+		$(if $(BUILD_CACHE),--cache-from type=registry$(comma)ref=$(BUILD_CACHE)) \
 		$(if $(DOCKER_VERSION),--build-arg DOCKER_VERSION=$(DOCKER_VERSION)) \
 		--build-arg APK_REFRESH=$(APK_REFRESH) \
 		-t $(IMAGE) .
