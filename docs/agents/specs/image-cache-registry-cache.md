@@ -1,8 +1,7 @@
 # Image Cache Spec: Registry Cache
 
 Part of the image-cache spec; start with [the overview](image-cache-overview.md).
-Read by #70. Depth: **goals + acceptance + contracts + open decisions** — #70 closes the
-[open decisions](#open-decisions) and updates this file in its own PR.
+Read by #70. Depth: **final** — #70 closed the [decisions](#decisions).
 
 ## Goal
 
@@ -25,8 +24,8 @@ Fixed by the [shared contracts](image-cache-overview.md#shared-contracts); resta
 
 - **Missing cache.** The first build (no `:buildcache` yet) succeeds, uncached.
 - **Docker Hub unreachable or rate-limited.** Import degrades to an uncached build, not a
-  failure. A failed export in `build-and-release` is reported; whether it fails the job is part
-  of the flag choice below.
+  failure (BuildKit only prints a warning). A failed export in `build-and-release` is reported
+  as a warning and does not fail the release (`ignore-error=true`, see [Decisions](#decisions)).
 - **Multi-arch cache, single-arch PR build.** The cache is written by the multi-arch
   (`linux/amd64`, `linux/arm64`) release build; the PR build is amd64 only and must reuse the
   amd64 layers without needing the arm64 ones.
@@ -41,9 +40,12 @@ Fixed by the [shared contracts](image-cache-overview.md#shared-contracts); resta
 - `make test-image` and `make test-cli-e2e` stay green.
 - `DOCKERHUB_DESCRIPTION.md` carries the `:buildcache` note.
 
-## Open decisions
+## Decisions
 
-| Decision | Options / notes |
-|----------|-----------------|
-| Exact `--cache-from` / `--cache-to` flags | e.g. `type=registry,ref=darthjee/vault:buildcache` with `mode=max` on export; whether `ignore-error=true` is set on export. |
-| Registry import in `make build-image` | `build-and-test` uses the default-builder `docker build`; decide how it imports a registry cache (cache-from support of the `docker` driver vs switching to a `docker-container` builder with `--load`). |
+| Decision | Outcome |
+|----------|---------|
+| `scripts/release.sh` flags | Cache ref `CACHE_REF="$RELEASE_IMAGE:buildcache"` (derived, not a separate env var). Always `--cache-from type=registry,ref=$CACHE_REF`; only when `PUSH=true`, also `--cache-to type=registry,ref=$CACHE_REF,mode=max,ignore-error=true`. Both come after `--output` and before the optional `DOCKER_VERSION` build arg. |
+| Registry import in `make build-image` | Settled by #69: `build-image` already runs on the `docker-container` builder `vault-builder` with `--output type=docker,rewrite-timestamp=true`, so it can import a registry cache with no driver change. It adds `--cache-from type=registry,ref=$(BUILD_CACHE)` when `BUILD_CACHE` is non-empty (`BUILD_CACHE ?= darthjee/vault:buildcache`; `make build-image BUILD_CACHE=` disables the import). It never passes `--cache-to`. |
+| Failure semantics | A missing or unreachable cache on import is only a BuildKit warning. A failed export is ignored (`ignore-error=true`). Neither fails the build. |
+| CircleCI | No change: `build-and-test` and `build-and-release` both go through `make`. |
+| Verification | bats argument tests for `scripts/release.sh` (cache flags with and without `PUSH=true`) plus a manual check that a second build of an unchanged tree shows `CACHED` layers. |

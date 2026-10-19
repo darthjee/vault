@@ -11,6 +11,11 @@
 # (rewrite-timestamp=true), so layer digests depend only on content.
 # APK_REFRESH (default: current UTC month, `date -u +%Y-%m`) is passed as a
 # build arg so the `apk add` layer is rebuilt once a month.
+# Layer cache: every run imports the BuildKit cache from
+# $RELEASE_IMAGE:buildcache (--cache-from). Only with PUSH=true is it also
+# exported there (--cache-to, mode=max: intermediate layers for both
+# platforms). A missing cache only warns and a failed export is ignored
+# (ignore-error=true), so the cache never fails the build.
 # Requires a buildx builder able to target both platforms
 # (see scripts/ci/setup_buildx.sh).
 set -euo pipefail
@@ -40,17 +45,24 @@ case "$PUSH" in
     ;;
 esac
 
+CACHE_REF="$RELEASE_IMAGE:buildcache"
+
 args=(
   --platform "$PLATFORMS"
   -t "$RELEASE_IMAGE:$tag"
   -t "$RELEASE_IMAGE:latest"
   --build-arg "APK_REFRESH=$APK_REFRESH"
   --output "type=image,push=$PUSH,rewrite-timestamp=true"
+  --cache-from "type=registry,ref=$CACHE_REF"
 )
+
+if [ "$PUSH" = true ]; then
+  args+=(--cache-to "type=registry,ref=$CACHE_REF,mode=max,ignore-error=true")
+fi
 
 if [ -n "${DOCKER_VERSION:-}" ]; then
   args+=(--build-arg "DOCKER_VERSION=$DOCKER_VERSION")
 fi
 
-echo "release: building $RELEASE_IMAGE:$tag and :latest for $PLATFORMS (push=$PUSH, SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH, APK_REFRESH=$APK_REFRESH)"
+echo "release: building $RELEASE_IMAGE:$tag and :latest for $PLATFORMS (push=$PUSH, SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH, APK_REFRESH=$APK_REFRESH, cache=$CACHE_REF)"
 docker buildx build "${args[@]}" .

@@ -84,7 +84,7 @@ executable `build/vault`.
 | Target | Behaviour |
 |--------|-----------|
 | `bundle-cli` | Builds the CLI bundle `build/vault` (`scripts/bundle_cli.sh`). |
-| `build-image` | Depends on `bundle-cli`, then `docker build` the image as `IMAGE`, passing `--build-arg DOCKER_VERSION` when set. |
+| `build-image` | Depends on `bundle-cli` and `buildx-builder`, then `docker buildx build`s the image as `IMAGE` on the `vault-builder` builder (`--output type=docker`, loaded locally), importing the registry layer cache `BUILD_CACHE` when set and passing `--build-arg DOCKER_VERSION` when set. Never exports the cache. |
 | `lint` | shellcheck over `source/`, `scripts/`, `cli/` and `test/`, plus `cli/bin/vault`, `cli/completion/vault.bash` and `install.sh` (`scripts/lint.sh`). |
 | `test` | Builds the CLI bundle, then bats over `test/lib/`, `test/cli/`, `test/install/` and `test/scripts/` on `BATS_IMAGE`, `test/cli/` and `test/install/` again on the bash 3.2 image, and `zsh -n cli/completion/_vault` (`scripts/test.sh`). |
 | `test-docs` | Checks the links of every `*.md` under `docs/guides/` (`scripts/check_guides_links.sh`) and under `docs/agents/` (`scripts/check_guides_links.sh docs/agents .`), on the host. Guides: relative links stay inside the tree. Agent docs: relative links stay inside the repo. Both: relative links resolve (anchors included), other links are absolute `https://`, no reference-style links, no images; code is ignored. One `test-docs: OK (<n> file(s))` line per tree. |
@@ -109,3 +109,4 @@ executable `build/vault`.
 | `RELEASE_IMAGE` | `darthjee/vault` | Repository `release` pushes to. |
 | `PUSH` | `true` | Whether `release` pushes (set `false` to build only). |
 | `DOCKER_VERSION` | unset (Dockerfile default) | Base image version passed as a build arg. |
+| `BUILD_CACHE` | `darthjee/vault:buildcache` | Registry layer cache `build-image` imports (`--cache-from`); empty (`BUILD_CACHE=`) disables the import. |

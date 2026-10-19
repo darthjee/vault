@@ -93,3 +93,8 @@ the Sysbox runtime. See the
 
 - `linux/amd64`
 - `linux/arm64`
+
+## Tags
+
+- `X.Y.Z` and `latest` are the runnable images.
+- `buildcache` is a BuildKit layer cache used by CI builds, not an image to run.
