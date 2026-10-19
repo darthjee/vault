@@ -19,6 +19,7 @@ test:
 
 test-docs:
 	scripts/check_guides_links.sh
+	scripts/check_guides_links.sh docs/agents .
 
 bundle-cli:
 	scripts/bundle_cli.sh
