@@ -39,16 +39,20 @@ run_release() {
   run_release 1.2.3
   assert_success
   assert_equal "$(cat "$DOCKER_STUB_LOG")" \
-    "buildx build --platform linux/amd64,linux/arm64 -t darthjee/vault:1.2.3 -t darthjee/vault:latest --build-arg APK_REFRESH=$month --output type=image,push=true,rewrite-timestamp=true ."
+    "buildx build --platform linux/amd64,linux/arm64 -t darthjee/vault:1.2.3 -t darthjee/vault:latest --build-arg APK_REFRESH=$month --output type=image,push=true,rewrite-timestamp=true --cache-from type=registry,ref=darthjee/vault:buildcache --cache-to type=registry,ref=darthjee/vault:buildcache,mode=max,ignore-error=true ."
   assert_equal "$(cat "$DOCKER_STUB_EPOCH_LOG")" "0"
 }
 
-@test "with PUSH=false the output does not push" {
+@test "with PUSH=false the output does not push and the cache is only imported" {
   PUSH=false run_release 1.2.3
   assert_success
   run grep -c -- "--output type=image,push=false,rewrite-timestamp=true" "$DOCKER_STUB_LOG"
   assert_output "1"
   run grep -c -- "--push" "$DOCKER_STUB_LOG"
+  assert_output "0"
+  run grep -o -- "--cache-from type=registry,ref=darthjee/vault:buildcache" "$DOCKER_STUB_LOG"
+  assert_equal "${#lines[@]}" "1"
+  run grep -c -- "--cache-to" "$DOCKER_STUB_LOG"
   assert_output "0"
 }
 
@@ -57,7 +61,7 @@ run_release() {
     RELEASE_IMAGE=me/img run_release 2.0.0
   assert_success
   assert_equal "$(cat "$DOCKER_STUB_LOG")" \
-    "buildx build --platform linux/amd64,linux/arm64 -t me/img:2.0.0 -t me/img:latest --build-arg APK_REFRESH=2020-01 --output type=image,push=true,rewrite-timestamp=true --build-arg DOCKER_VERSION=27.0.0 ."
+    "buildx build --platform linux/amd64,linux/arm64 -t me/img:2.0.0 -t me/img:latest --build-arg APK_REFRESH=2020-01 --output type=image,push=true,rewrite-timestamp=true --cache-from type=registry,ref=me/img:buildcache --cache-to type=registry,ref=me/img:buildcache,mode=max,ignore-error=true --build-arg DOCKER_VERSION=27.0.0 ."
   assert_equal "$(cat "$DOCKER_STUB_EPOCH_LOG")" "1700000000"
 }
 
