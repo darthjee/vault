@@ -16,7 +16,7 @@
 | `VERSION` | Current version; checked against the release tag. |
 | `DOCKERHUB_DESCRIPTION.md` | Docker Hub page content. |
 | `README.md`, `AGENTS.md`, `LICENSE` | README: overview, quick start, links to the guides and a short Security summary (detailed usage lives in `docs/guides/`); project instructions for agents; license. |
-| `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and temporary per-epic specs (`specs/`, see [specs.md](specs.md)). |
+| `docs/agents/` | Agent documentation, issues (`issues/`), implementation plans (`plans/`) and temporary per-epic specs (`specs/`, see [specs.md](specs.md)). Every `*.md` here, issues and plans included, is link-checked by `make test-docs`: relative links may point anywhere inside the repo but must resolve (anchors included), other links are `https://`. Name files that do not exist yet in inline code instead of linking them. |
 | `docs/guides/` | Portable user guides, owner `product-owner`. `vault.md` is the index (top block, `**Vault version:** X.Y.Z` line, links to every page); `vault/` holds `concepts.md`, `base-image.md`, `docker-run.md`, `cli.md`, `configuration.md`, `operations.md`, `security.md`, `troubleshooting.md`, `examples.md` and `agents-snippet.md`. Consumer repos copy the tree as a whole, so relative links stay inside it and every other link is an absolute `https://` URL. The version line is kept in sync by `bump-version` / `check-version-tag`. Checked by `make test-docs`. |
 | `.github/` | PR template, commit message template, Copilot pointer. |
 | `.claude/` | Claude agents, check scripts and configuration. |
@@ -58,7 +58,7 @@ executable `build/vault`.
 | `cli/` | Bats tests for the CLI (`cli/bin/vault`, `cli/lib/`, completion); `helpers/` holds the docker stub and CLI loaders. | `cli` |
 | `install/` | Bats tests for the root `install.sh`; `helpers/` holds its stub. | `cli` |
 | `bash32/` | `Dockerfile` of the bash 3.2 bats image (`BASH32_TEST_IMAGE`) that also runs `test/cli/` and `test/install/`. | `automation` |
-| `scripts/` | Bats tests for repo scripts: `scripts/github_release.sh` (stub `gh` in `helpers/`), `scripts/check_guides_links.sh` (on fixture guide trees), `scripts/bump_version.sh` and `scripts/check_tag_version.sh`. | `scripts` |
+| `scripts/` | Bats tests for repo scripts: `scripts/github_release.sh` (stub `gh` in `helpers/`), `scripts/check_guides_links.sh` (on fixture guide trees, with and without a `BOUND`), `scripts/bump_version.sh` and `scripts/check_tag_version.sh`. | `scripts` |
 
 ## scripts/
 
@@ -75,7 +75,8 @@ executable `build/vault`.
 - Release scripts: `release.sh` (multi-arch build and push), `github_release.sh` (GitHub release of the
   CLI assets with `gh`).
 - Test scripts: `test.sh` (bats), `test_image.sh` (smoke test), `test_cli_e2e.sh` (CLI end-to-end test),
-  `check_guides_links.sh [ROOT]` (link check of the guides; `ROOT` defaults to `docs/guides`).
+  `check_guides_links.sh [ROOT [BOUND]]` (link check of the guides and agent docs; `ROOT` defaults to
+  `docs/guides`, `BOUND` defaults to `ROOT` and relative links must stay inside it).
 - Everything under `scripts/` is shellchecked by `make lint`.
 
 ## Makefile
@@ -86,7 +87,7 @@ executable `build/vault`.
 | `build-image` | Depends on `bundle-cli`, then `docker build` the image as `IMAGE`, passing `--build-arg DOCKER_VERSION` when set. |
 | `lint` | shellcheck over `source/`, `scripts/`, `cli/` and `test/`, plus `cli/bin/vault`, `cli/completion/vault.bash` and `install.sh` (`scripts/lint.sh`). |
 | `test` | Builds the CLI bundle, then bats over `test/lib/`, `test/cli/`, `test/install/` and `test/scripts/` on `BATS_IMAGE`, `test/cli/` and `test/install/` again on the bash 3.2 image, and `zsh -n cli/completion/_vault` (`scripts/test.sh`). |
-| `test-docs` | Checks the links of every `*.md` under `docs/guides/` (`scripts/check_guides_links.sh`), on the host: relative links stay inside the tree and resolve (anchors included), other links are absolute `https://`, no reference-style links, no images; code is ignored. Last line `test-docs: OK (<n> file(s))`. |
+| `test-docs` | Checks the links of every `*.md` under `docs/guides/` (`scripts/check_guides_links.sh`) and under `docs/agents/` (`scripts/check_guides_links.sh docs/agents .`), on the host. Guides: relative links stay inside the tree. Agent docs: relative links stay inside the repo. Both: relative links resolve (anchors included), other links are absolute `https://`, no reference-style links, no images; code is ignored. One `test-docs: OK (<n> file(s))` line per tree. |
 | `test-image` | Depends on `build-image`, then runs the smoke test (`scripts/test_image.sh`). |
 | `test-cli-e2e` | Depends on `build-image`, then runs `scripts/test_cli_e2e.sh` (CLI end-to-end test). |
 | `bump-version VERSION=X.Y.Z` | Updates `VERSION`, the README version line and the `VAULT_VERSION` lines of `cli/bin/vault` and `install.sh`, and the `**Vault version:**` line of `docs/guides/vault.md` (`scripts/bump_version.sh`). |
