@@ -19,7 +19,8 @@ You own:
 Do NOT touch the paths below. If you need a change there, report it to their owner:
 
 - `Dockerfile`, `source/` (including `source/bin/install.sh`), `test/lib/`, `test/fixture/` — owned by `dev`
-- `Makefile`, `scripts/`, `.circleci/`, `VERSION`, `test/bash32/`, `test/scripts/`, `build/` — owned by `automation`
+- `scripts/*.sh` (including `bundle_cli.sh` and `test_cli_e2e.sh`), `test/scripts/` — owned by `scripts`
+- `Makefile`, `scripts/ci/`, `.circleci/`, `VERSION`, `test/bash32/`, `build/` — owned by `automation`
 - `docs/agents/` (including `docs/agents/specs/`) — owned by `product-owner`
 - Other root-level files (`README.md`, `AGENTS.md`, …), `.github/`, `.claude/` — owned by `architect`
 
@@ -46,5 +47,5 @@ make test-cli-e2e  # end-to-end test against the built image
 - Only `cli/bin/vault` reads environment variables and `.vaultrc`.
 - `.vaultrc` is parsed line by line and is **never** `source`d.
 - Wrap `docker` in a function so bats tests can stub it.
-- **Bundling rule:** `cli/bin/vault` sources its libraries through one marked block (`# BEGIN LIBS` … `# END LIBS`). `scripts/bundle_cli.sh` (owned by `automation`) replaces that block with `cli/lib/*.sh` concatenated in a fixed order and writes `build/vault`. Keep the block intact and keep libraries self-contained so the bundle works.
+- **Bundling rule:** `cli/bin/vault` sources its libraries through one marked block (`# BEGIN LIBS` … `# END LIBS`). `scripts/bundle_cli.sh` (owned by `scripts`) replaces that block with `cli/lib/*.sh` concatenated in a fixed order and writes `build/vault`. Keep the block intact and keep libraries self-contained so the bundle works.
 - Never call `sudo`, never escalate privileges silently, and never mount the host Docker socket or publish ports 2375/2376.
