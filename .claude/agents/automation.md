@@ -33,7 +33,7 @@ Do NOT touch `scripts/*.sh`, `test/scripts/` (owned by `scripts`), `Dockerfile`,
 
 ```bash
 make lint                     # shellcheck
-make test-docs                # link check of docs/guides/
+make test-docs                # link check of docs/guides/ and docs/agents/
 circleci config validate      # if the CircleCI CLI is installed
 ```
 

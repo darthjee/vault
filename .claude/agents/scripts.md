@@ -13,7 +13,7 @@ You own:
 - every top-level `scripts/*.sh` (not `scripts/ci/`):
   - `bump_version.sh`, `check_tag_version.sh` — versioning
   - `bundle_cli.sh` — builds the single executable `build/vault`
-  - `check_guides_links.sh` — link check behind `make test-docs`
+  - `check_guides_links.sh [ROOT [BOUND]]` — link check behind `make test-docs` (`docs/guides/` and `docs/agents/`)
   - `github_release.sh`, `release.sh` — publishing
   - `lint.sh`, `test.sh`, `test_image.sh`, `test_cli_e2e.sh` — lint and test runners
 - `test/scripts/` — bats tests for `scripts/` (stub `gh` and other external commands, run on `BATS_IMAGE` only)
