@@ -117,7 +117,7 @@ touches how it is built.
 | [image-cache-agents.md](image-cache-agents.md) | The `scripts` agent, what `automation` keeps, docs to update. | #66 | Final |
 | [image-cache-dockerfile.md](image-cache-dockerfile.md) | Target layer order, permissions that must not change. | #68 | Final |
 | [image-cache-reproducible.md](image-cache-reproducible.md) | `SOURCE_DATE_EPOCH` / `rewrite-timestamp`, `apk` layer, cache-bust knob, digest check. | #69 | Final |
-| [image-cache-registry-cache.md](image-cache-registry-cache.md) | Who imports / exports `:buildcache`, fallbacks, `DOCKERHUB_DESCRIPTION.md` note. | #70 | Goals + acceptance + contracts + open decisions |
+| [image-cache-registry-cache.md](image-cache-registry-cache.md) | Who imports / exports `:buildcache`, fallbacks, `DOCKERHUB_DESCRIPTION.md` note. | #70 | Final |
 
 The clean-up sub-issue (#71) has no file; it is driven by `docs/agents/specs.md`.
 
