@@ -65,6 +65,11 @@ file in the same PR.
   longer need git metadata.
 - **Cache-bust build arg:** `APK_REFRESH`, format `YYYY-MM` (UTC month, `date -u +%Y-%m` by
   default, overridable). A new value rebuilds the `apk add` layer and every later layer.
+- **Builder:** every build (`make build-image`, the tests, releases,
+  `scripts/check_reproducible.sh`) uses the `docker-container` builder `vault-builder`
+  (override: `BUILDER`), BuildKit pinned to `moby/buildkit:v0.33.1` (override:
+  `BUILDKIT_IMAGE`). Details in
+  [image-cache-reproducible.md → Decisions](image-cache-reproducible.md#decisions).
 - **Scripts agent:** `scripts` owns every top-level `scripts/*.sh` and `test/scripts/`; the path
   decides the owner. Details in [image-cache-agents.md](image-cache-agents.md).
 - **`Dockerfile` layer order:** least to most frequently changing; `COPY build/vault` is the last
