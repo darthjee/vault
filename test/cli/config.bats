@@ -200,7 +200,7 @@ runtime=foo
 
 @test "an empty image, port, volume or env-file fails (exit 1)" {
   local key
-  for key in image port volume env-file log-opt; do
+  for key in image port volume env-file log-driver log-opt; do
     write_rc "$key=
 "
     check_rc_error "vault: error: .vaultrc:1: invalid value for $key: ''"
@@ -448,4 +448,62 @@ EOF
 
   assert_equal "${#CONFIG_ENV_FILES[@]}" 1
   assert_equal "${CONFIG_ENV_FILES[0]}" /proj/.vault.env
+}
+
+@test "log-driver is accepted and the last line wins" {
+  write_rc 'log-driver=journald
+log-driver=local
+'
+  config_parse /proj <"$RC"
+
+  assert_equal "$CONFIG_RC_LOG_DRIVER_SET" 1
+  assert_equal "$CONFIG_RC_LOG_DRIVER" local
+}
+
+@test "log-driver with whitespace or = fails (exit 1)" {
+  local value
+  for value in "   " "a=b" "a b"; do
+    write_rc "log-driver=$value
+"
+    check_rc_error "vault: error: .vaultrc:1: invalid value for log-driver: '$value'"
+  done
+}
+
+@test "merge: the --log-driver flag overrides .vaultrc" {
+  args_parse up --log-driver local
+  config_parse /proj <<'EOF'
+log-driver=journald
+EOF
+  config_merge 1.2.3
+
+  assert_equal "$CONFIG_LOG_DRIVER" local
+}
+
+@test "merge: .vaultrc log-driver is used without a flag" {
+  args_parse up
+  config_parse /proj <<'EOF'
+log-driver=journald
+EOF
+  config_merge 1.2.3
+
+  assert_equal "$CONFIG_LOG_DRIVER" journald
+}
+
+@test "merge: no log-driver source leaves it empty" {
+  args_parse up
+  config_reset
+  config_merge 1.2.3
+
+  assert_equal "$CONFIG_LOG_DRIVER" ""
+}
+
+@test "merge: a --log-driver flag keeps the .vaultrc log-opt entries" {
+  args_parse up --log-driver local
+  config_parse /proj <<'EOF'
+log-opt=max-size=10m
+EOF
+  config_merge 1.2.3
+
+  assert_equal "$CONFIG_LOG_DRIVER" local
+  assert_equal "${CONFIG_LOG_OPTS[*]}" max-size=10m
 }

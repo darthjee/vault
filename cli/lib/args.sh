@@ -16,6 +16,7 @@
 #   ARGS_VOLUMES, ARGS_VOLUMES_SET  -v/--volume entries
 #   ARGS_ENVS, ARGS_ENVS_SET        -e/--env entries (never validated)
 #   ARGS_ENV_FILES, ARGS_ENV_FILES_SET  --env-file entries
+#   ARGS_LOG_DRIVER, ARGS_LOG_DRIVER_SET  --log-driver (up/run; last wins)
 #   ARGS_LOG_OPTS, ARGS_LOG_OPTS_SET  --log-opt entries (KEY=VALUE, up/run)
 #   ARGS_ATTACH                     1 with -f/--attach (up)
 #   ARGS_FOLLOW                     1 with -f/--follow (logs)
@@ -123,6 +124,16 @@ args_valid_runtime() {
   return 1
 }
 
+# Returns 0 when <value> is a plausible log driver name: non-empty, with no
+# whitespace and no "=" (Docker decides whether the driver exists).
+# Usage: args_valid_log_driver <value>
+args_valid_log_driver() {
+  case "$1" in
+    "" | *[[:space:]=]*) return 1 ;;
+  esac
+  return 0
+}
+
 # Returns 0 when <value> is a positive integer (no sign, no leading zero).
 # Usage: args_valid_stop_timeout <value>
 args_valid_stop_timeout() {
@@ -152,6 +163,8 @@ _args_reset() {
   ARGS_ENVS_SET=0
   ARGS_ENV_FILES=()
   ARGS_ENV_FILES_SET=0
+  ARGS_LOG_DRIVER=""
+  ARGS_LOG_DRIVER_SET=0
   ARGS_LOG_OPTS=()
   ARGS_LOG_OPTS_SET=0
   ARGS_ATTACH=0
@@ -171,7 +184,7 @@ _args_key() {
     -h | --help) echo help ;;
     --name) echo name ;;
     --image) echo image ;;
-    --runtime | -p | --port | -v | --volume | -e | --env | --env-file | --log-opt)
+    --runtime | -p | --port | -v | --volume | -e | --env | --env-file | --log-driver | --log-opt)
       case "$command" in
         up | run) _args_canonical "$opt" ;;
       esac
@@ -202,6 +215,7 @@ _args_canonical() {
     -v | --volume) echo volume ;;
     -e | --env) echo env ;;
     --env-file) echo env-file ;;
+    --log-driver) echo log-driver ;;
     --log-opt) echo log-opt ;;
   esac
 }
@@ -260,6 +274,11 @@ _args_store() {
       [ -n "$value" ] || { _args_bad_value "$opt" "$value"; return 2; }
       ARGS_ENV_FILES+=("$value")
       ARGS_ENV_FILES_SET=1
+      ;;
+    log-driver)
+      args_valid_log_driver "$value" || { _args_bad_value "$opt" "$value"; return 2; }
+      ARGS_LOG_DRIVER="$value"
+      ARGS_LOG_DRIVER_SET=1
       ;;
     log-opt)
       case "$value" in

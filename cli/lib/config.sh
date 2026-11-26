@@ -19,6 +19,8 @@ config_reset() {
   CONFIG_RC_VOLUMES=()
   CONFIG_RC_ENVS=()
   CONFIG_RC_ENV_FILES=()
+  CONFIG_RC_LOG_DRIVER=""
+  CONFIG_RC_LOG_DRIVER_SET=0
   CONFIG_RC_LOG_OPTS=()
 }
 
@@ -27,7 +29,7 @@ config_reset() {
 #   vaultrc-dir: the directory holding .vaultrc (absolute), used to resolve
 #   relative volume sources and env-file paths.
 # Sets: CONFIG_RC_NAME(_SET), CONFIG_RC_IMAGE(_SET), CONFIG_RC_RUNTIME(_SET),
-#   CONFIG_RC_STOP_TIMEOUT(_SET) (scalars, the last line wins), and the
+#   CONFIG_RC_STOP_TIMEOUT(_SET), CONFIG_RC_LOG_DRIVER(_SET) (scalars, the last line wins), and the
 #   arrays CONFIG_RC_PORTS, CONFIG_RC_VOLUMES, CONFIG_RC_ENVS,
 #   CONFIG_RC_ENV_FILES, CONFIG_RC_LOG_OPTS (file order).
 # Unknown keys warn and are skipped. Returns 1 on a line without "=" or a
@@ -64,7 +66,8 @@ config_parse() {
 # Usage: config_merge <vault-version>
 # Sets: CONFIG_NAME ("" when neither --name nor name= is given),
 #   CONFIG_IMAGE (default darthjee/vault:<vault-version>), CONFIG_RUNTIME
-#   (default auto), CONFIG_STOP_TIMEOUT (default 60), and the arrays
+#   (default auto), CONFIG_STOP_TIMEOUT (default 60), CONFIG_LOG_DRIVER
+#   ("" when unset; resolved independently of the log options), and the arrays
 #   CONFIG_PORTS (default 3000:80 when no source gives a port),
 #   CONFIG_VOLUMES, CONFIG_ENVS, CONFIG_ENV_FILES, CONFIG_LOG_OPTS (deduped by
 #   key, the last occurrence wins).
@@ -74,6 +77,7 @@ config_merge() {
   CONFIG_NAME="$(_config_pick "$ARGS_NAME_SET" "$ARGS_NAME" "$CONFIG_RC_NAME_SET" "$CONFIG_RC_NAME" "")"
   CONFIG_IMAGE="$(_config_pick "$ARGS_IMAGE_SET" "$ARGS_IMAGE" "$CONFIG_RC_IMAGE_SET" "$CONFIG_RC_IMAGE" "darthjee/vault:$version")"
   CONFIG_RUNTIME="$(_config_pick "$ARGS_RUNTIME_SET" "$ARGS_RUNTIME" "$CONFIG_RC_RUNTIME_SET" "$CONFIG_RC_RUNTIME" auto)"
+  CONFIG_LOG_DRIVER="$(_config_pick "$ARGS_LOG_DRIVER_SET" "$ARGS_LOG_DRIVER" "$CONFIG_RC_LOG_DRIVER_SET" "$CONFIG_RC_LOG_DRIVER" "")"
   CONFIG_STOP_TIMEOUT="$(_config_pick "$ARGS_STOP_TIMEOUT_SET" "$ARGS_STOP_TIMEOUT" "$CONFIG_RC_STOP_TIMEOUT_SET" "$CONFIG_RC_STOP_TIMEOUT" 60)"
 
   if [ "$ARGS_PORTS_SET" = 1 ]; then
@@ -164,6 +168,11 @@ _config_set() {
     env-file)
       [ -n "$value" ] || { _config_bad_value "$number" "$key" "$value"; return 1; }
       CONFIG_RC_ENV_FILES+=("$(_config_resolve_path "$dir" "$value")")
+      ;;
+    log-driver)
+      args_valid_log_driver "$value" || { _config_bad_value "$number" "$key" "$value"; return 1; }
+      CONFIG_RC_LOG_DRIVER="$value"
+      CONFIG_RC_LOG_DRIVER_SET=1
       ;;
     log-opt)
       case "$value" in
