@@ -4,9 +4,12 @@
 # Drives a real instance, named e2e-<pid>, with the test/fixture compose stack:
 #   - `vault up --runtime=privileged -p 127.0.0.1:<free port>:80` prints
 #     "vault-e2e-<pid> started", and HTTP / answers within SMOKE_TIMEOUT;
-#   - `vault up` is given `--log-opt max-size=10m --log-opt max-file=2`, and
-#     `vault status` names the container, the privileged runtime and a `logs:`
-#     line containing both options (real Docker accepts them);
+#   - `vault up` is given `--log-driver local --log-opt max-size=10m
+#     --log-opt max-file=2`, and `vault status` names the container, the
+#     privileged runtime and a `logs:` line starting with `local` and
+#     containing both options (real Docker accepts them); `vault up
+#     --log-driver json-file` against the running instance warns that the log
+#     configuration differs and exits 0;
 #   - `vault compose ps` lists the fixture's web service;
 #   - `vault down` removes the container and keeps the data volume.
 # Then installs the CLI with install.sh from that local image into a temp
@@ -36,6 +39,7 @@ main() {
   cli_up
   wait_for_http
   cli_status
+  cli_up_stale_driver
   cli_compose_ps
   cli_down
   install_cli
@@ -75,7 +79,7 @@ cli_up() {
 
   echo "test-cli-e2e: vault up $NAME ($IMAGE) on 127.0.0.1:$PORT"
   output="$("$VAULT" up --name "$NAME" --image "$IMAGE" --runtime=privileged \
-    --log-opt max-size=10m --log-opt max-file=2 \
+    --log-driver local --log-opt max-size=10m --log-opt max-file=2 \
     -p "127.0.0.1:$PORT:80" "$FIXTURE_DIR" </dev/null 2>&1)" \
     || fail "vault up exited non-zero: $output"
   if ! grep -Fq "$CONTAINER started" <<<"$output"; then
@@ -117,7 +121,22 @@ cli_status() {
   if ! grep -Eq '^logs:.*max-size=10m' <<<"$output"; then
     fail "vault status did not report log option max-size=10m: $output"
   fi
+  if ! grep -Eq '^logs:[[:space:]]+local( |$)' <<<"$output"; then
+    fail "vault status did not report log driver local: $output"
+  fi
   echo "test-cli-e2e: status"
+}
+
+cli_up_stale_driver() {
+  local output
+
+  output="$("$VAULT" up --name "$NAME" --image "$IMAGE" --runtime=privileged \
+    --log-driver json-file "$FIXTURE_DIR" </dev/null 2>&1)" \
+    || fail "vault up on a running instance exited non-zero: $output"
+  if ! grep -Fq "vault: warning: log configuration differs from the running instance" <<<"$output"; then
+    fail "vault up did not warn about the differing log driver: $output"
+  fi
+  echo "test-cli-e2e: up warns on a differing log driver"
 }
 
 cli_compose_ps() {
