@@ -273,6 +273,8 @@ vault: hint: run \"vault help\"" up --follow
 vault: hint: run \"vault help\"" compose -e A=1
   local cmd
   for cmd in down logs status compose; do
+    check_usage_error "vault: error: unknown option '--log-driver'
+vault: hint: run \"vault help\"" "$cmd" --log-driver local
     check_usage_error "vault: error: unknown option '--log-opt'
 vault: hint: run \"vault help\"" "$cmd" --log-opt max-size=10m
   done
@@ -380,4 +382,23 @@ vault: hint: run \"vault help\"" "$cmd" --log-opt max-size=10m
 @test "an unsupported command is rejected" {
   check_usage_error "vault: error: unknown command 'nope'
 vault: hint: run \"vault help\"" nope
+}
+
+@test "log-driver is accepted on up and run, last value wins" {
+  args_parse up --log-driver json-file --log-driver=local
+  assert_equal "$ARGS_LOG_DRIVER_SET" 1
+  assert_equal "$ARGS_LOG_DRIVER" local
+
+  args_parse run --log-driver journald app config
+  assert_equal "$ARGS_LOG_DRIVER" journald
+}
+
+@test "an invalid --log-driver is a bad value" {
+  check_usage_error "vault: error: invalid value for --log-driver: ''" up --log-driver ""
+  check_usage_error "vault: error: invalid value for --log-driver: 'a b'" up --log-driver "a b"
+  check_usage_error "vault: error: invalid value for --log-driver: 'json-file=x'" run --log-driver json-file=x
+}
+
+@test "--log-driver without a value fails" {
+  check_usage_error "vault: error: --log-driver requires a value" up --log-driver
 }

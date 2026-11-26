@@ -185,7 +185,7 @@ check_up_running() {
 @test "up on a running instance warns when a --log-opt value differs" {
   stub_running_logs json-file "max-size=1m "
   EXPECTED_LOGS="json-file max-size=1m"
-  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them" \
     --log-opt max-size=10m
 }
 
@@ -193,20 +193,20 @@ check_up_running() {
   stub_running_logs json-file "max-size=1m "
   printf 'log-opt=max-size=10m\n' >"$PROJ/.vaultrc"
   EXPECTED_LOGS="json-file max-size=1m"
-  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
 }
 
 @test "up on a running instance warns when a requested key is missing" {
   stub_running_logs json-file ""
   EXPECTED_LOGS="json-file"
-  check_up_running "vault: warning: log options differ from the running instance (json-file); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file); run 'vault down' then 'vault up' to apply them" \
     --log-opt max-size=10m
 }
 
 @test "up on a running instance masks sensitive values in the warning" {
   stub_running_logs splunk "splunk-token=abc "
   EXPECTED_LOGS="splunk splunk-token=***"
-  check_up_running "vault: warning: log options differ from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them" \
     --log-opt splunk-token=xyz
 }
 
@@ -404,4 +404,100 @@ vault: hint: is Docker running, and can this user access it?"
     assert_line --index 0 "Usage: vault <command> [options] [dir] [args]"
     assert_equal "$(docker_stub_calls)" ""
   done
+}
+
+@test "up emits --log-driver after -e and before --log-opt and --name" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged -e A=1 --log-driver local
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 -e A=1 --log-driver local --name vault-proj -d "$IMAGE"
+
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver local --log-opt max-size=10m
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver local --log-opt max-size=10m --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up without a log driver emits no --log-driver" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged
+    assert_success
+    run grep -c -e --log-driver "$DOCKER_STUB_LOG"
+    assert_output 0
+  done
+}
+
+@test "up takes log-driver from .vaultrc, a flag overrides it" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  printf 'log-driver=journald\n' >"$PROJ/.vaultrc"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver journald --name vault-proj -d "$IMAGE"
+
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver local
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver local --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up emits --log-driver none as is" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver none
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver none --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up with a driver Docker rejects fails with exit 1 and Docker's message" {
+  local vault
+  docker_stub_set run "" 1 "docker: Error response from daemon: unknown log driver."
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged --log-driver nope
+
+    assert_failure 1
+    assert_equal "$stderr" "docker: Error response from daemon: unknown log driver."
+  done
+}
+
+@test "up on a running instance warns when --log-driver differs" {
+  stub_running_logs journald ""
+  EXPECTED_LOGS="journald"
+  check_up_running "vault: warning: log configuration differs from the running instance (journald); run 'vault down' then 'vault up' to apply them" \
+    --log-driver local
+}
+
+@test "up on a running instance warns when the .vaultrc log-driver differs" {
+  stub_running_logs journald ""
+  printf 'log-driver=local\n' >"$PROJ/.vaultrc"
+  EXPECTED_LOGS="journald"
+  check_up_running "vault: warning: log configuration differs from the running instance (journald); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "up on a running instance is silent when the log driver matches" {
+  stub_running_logs local ""
+  EXPECTED_LOGS="local"
+  check_up_running "" --log-driver local
 }

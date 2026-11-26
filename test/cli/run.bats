@@ -71,6 +71,25 @@ vault: hint: stop it with "vault down", or use "vault compose"'
   done
 }
 
+@test "run emits --log-driver before --log-opt, the TTY flags and --rm" {
+  local vault
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    # shellcheck disable=SC2016 # expanded by the inner bash
+    run --separate-stderr bash -c '
+      source "$1"
+      instance_tty_flags() { INSTANCE_TTY_ARGS=(-i -t); }
+      vault_main run --runtime privileged --log-driver local --log-opt max-size=10m config
+    ' tty "$vault"
+
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver local --log-opt max-size=10m \
+      -i -t --rm "$IMAGE" config
+  done
+}
+
 @test "run keeps a log-opt value with spaces as one argument" {
   local vault
   for vault in "${VAULTS[@]}"; do
