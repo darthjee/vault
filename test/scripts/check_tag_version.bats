@@ -75,6 +75,19 @@ run_check() {
   assert_equal "$stderr" "error: tag '1.2.3' does not match VERSION file ('1.2.2')"
 }
 
+@test "a README Current Version link matches" {
+  printf '**Current Version:** [1.2.3](https://github.com/darthjee/vault/releases/tag/1.2.3)\n' > "$WORK/README.md"
+  run_check 1.2.3
+  assert_success
+}
+
+@test "a README Current Version link mismatch fails" {
+  printf '**Current Version:** [1.2.2](https://github.com/darthjee/vault/releases/tag/1.2.2)\n' > "$WORK/README.md"
+  run_check 1.2.3
+  assert_failure 1
+  assert_equal "$stderr" "error: tag '1.2.3' does not match README.md Current Version ('1.2.2')"
+}
+
 @test "a README mismatch fails" {
   printf '**Current Version:** 1.2.2\n' > "$WORK/README.md"
   run_check 1.2.3

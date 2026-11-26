@@ -24,7 +24,8 @@ if [ -z "$tag" ]; then
 fi
 
 file_version="$(tr -d '[:space:]' < "$VERSION_FILE")"
-readme_version="$(sed -n 's/^\*\*Current Version:\*\* *\([^[:space:]]*\).*/\1/p' "$README_FILE" | head -n 1)"
+# Accepts both "**Current Version:** X.Y.Z" and "**Current Version:** [X.Y.Z](link)".
+readme_version="$(sed -n 's/^\*\*Current Version:\*\* *\[\{0,1\}\([^][:space:]]*\).*/\1/p' "$README_FILE" | head -n 1)"
 
 status=0
 

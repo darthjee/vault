@@ -38,7 +38,7 @@ bundle-cli:
 	scripts/bundle_cli.sh
 
 bump-version:
-	$(if $(VERSION),scripts/bump_version.sh $(VERSION),$(error VERSION is required, e.g. make bump-version VERSION=X.Y.Z))
+	scripts/bump_version.sh $(VERSION)
 
 check-version-tag:
 	$(if $(TAG),scripts/check_tag_version.sh $(TAG),$(error TAG is required, e.g. make check-version-tag TAG=X.Y.Z))
