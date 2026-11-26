@@ -122,7 +122,8 @@ Modelled after the `navi` project:
 - `check-version-tag`: tag must match the `VERSION` file, the README `**Current Version:**`
   line, the `VAULT_VERSION="X.Y.Z"` lines of `cli/bin/vault` and `install.sh` and the
   `**Vault version:**` line of `docs/guides/vault.md`;
-  `scripts/bump_version.sh X.Y.Z` updates all of them.
+  `scripts/bump_version.sh [patch|minor|major|X.Y.Z]` (default `patch`, computed from
+  `VERSION`) updates all of them, plus the README `**Next Release:**` compare link.
 - `build-and-release`: `make ci-release-setup` (buildx/QEMU setup + `docker login`), then
   `make release TAG=$CIRCLE_TAG` — multi-arch (`linux/amd64`,
   `linux/arm64`) with `docker buildx`, pushes `darthjee/vault:<version>` and `:latest`; imports
