@@ -52,6 +52,38 @@ vault: hint: stop it with "vault down", or use "vault compose"'
   done
 }
 
+@test "run emits --log-opt after -e and before the TTY flags and --rm" {
+  local vault
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    # shellcheck disable=SC2016 # expanded by the inner bash
+    run --separate-stderr bash -c '
+      source "$1"
+      instance_tty_flags() { INSTANCE_TTY_ARGS=(-i -t); }
+      vault_main run --runtime privileged -e A=1 --log-opt max-size=10m --log-opt max-file=2 config
+    ' tty "$vault"
+
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 -e A=1 --log-opt max-size=10m --log-opt max-file=2 \
+      -i -t --rm "$IMAGE" config
+  done
+}
+
+@test "run keeps a log-opt value with spaces as one argument" {
+  local vault
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" run --runtime privileged --log-opt "max-size=1m --privileged" config
+
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-opt "max-size=1m --privileged" --rm "$IMAGE" config
+  done
+}
+
 @test "run with only stdout a TTY adds -t only" {
   local vault
   for vault in "${VAULTS[@]}"; do

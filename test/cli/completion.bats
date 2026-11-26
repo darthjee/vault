@@ -72,6 +72,7 @@ version"
 --env-file
 --help
 --image
+--log-opt
 --name
 --port
 --runtime
@@ -91,8 +92,17 @@ version"
   assert_line -- --runtime
   assert_line -- --stop-timeout
   assert_line -- --env-file
+  assert_line -- --log-opt
   refute_line -- -f
   refute_line -- --attach
+}
+
+@test "--log-opt is offered by up and run only" {
+  local command
+  for command in down logs status compose; do
+    run complete_words vault "$command" -
+    refute_line -- --log-opt
+  done
 }
 
 @test "down offers --stop-timeout but no up-only option" {

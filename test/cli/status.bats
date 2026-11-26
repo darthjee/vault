@@ -22,7 +22,9 @@ setup() {
 sha256:abc
 sysbox-runc false
 3000->80/tcp 
-PATH RAILS_ENV VAULT_DOCKERD_TIMEOUT SECRET_KEY_BASE "
+PATH RAILS_ENV VAULT_DOCKERD_TIMEOUT SECRET_KEY_BASE 
+json-file
+max-file=2 max-size=10m "
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" status
 
@@ -33,7 +35,8 @@ image:    $IMAGE
 runtime:  sysbox-runc
 ports:    3000->80/tcp
 volume:   vault-proj-data
-env:      RAILS_ENV, SECRET_KEY_BASE"
+env:      RAILS_ENV, SECRET_KEY_BASE
+logs:     json-file max-file=2, max-size=10m"
     assert_equal "$stderr" ""
     assert_docker_called inspect --format '{{.State.Running}}' vault-proj
     assert_docker_called inspect --format "$STATUS_FORMAT" vault-proj
@@ -48,7 +51,9 @@ env:      RAILS_ENV, SECRET_KEY_BASE"
 sha256:abc
 runc true
 3000->80/tcp 8443->443/tcp 
-PATH "
+PATH 
+json-file
+"
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" status
 
@@ -59,7 +64,8 @@ image:    $IMAGE
 runtime:  privileged
 ports:    3000->80/tcp, 8443->443/tcp
 volume:   vault-proj-data
-env:"
+env:
+logs:     json-file"
   done
 }
 
@@ -71,7 +77,9 @@ env:"
 sha256:abc
 sysbox-runc false
 3000->80/tcp 
-SECRET "
+SECRET 
+json-file
+"
   printf 'SECRET=abc\n' >"$PROJ/.vault.env"
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" status
@@ -90,13 +98,67 @@ SECRET "
 sha256:abc
 sysbox-runc false
 3000->80/tcp 
-PATH A "
+PATH A 
+json-file
+"
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" status
 
     assert_success
     assert_line "env:      PATH, A"
     assert_equal "$stderr" ""
+  done
+}
+
+@test "status prints a template-like option value literally" {
+  local vault
+  vault_stub_instance true "$IMAGE
+sha256:abc
+runc false
+3000->80/tcp 
+PATH 
+fluentd
+tag={{.Name}} "
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" status
+
+    assert_success
+    assert_line "logs:     fluentd tag={{.Name}}"
+  done
+}
+
+@test "status shows the none driver" {
+  local vault
+  vault_stub_instance true "$IMAGE
+sha256:abc
+runc false
+3000->80/tcp 
+PATH 
+none
+"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" status
+
+    assert_success
+    assert_line "logs:     none"
+  done
+}
+
+@test "status masks sensitive option values" {
+  local vault
+  vault_stub_instance true "$IMAGE
+sha256:abc
+runc false
+3000->80/tcp 
+PATH 
+splunk
+splunk-token=abc splunk-url=https://h "
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" status
+
+    assert_success
+    assert_line "logs:     splunk splunk-token=***, splunk-url=https://h"
+    refute_output --partial abc
   done
 }
 
@@ -108,6 +170,7 @@ PATH A "
     assert_success
     assert_output "name:     vault-proj
 state:    not found"
+    refute_output --partial logs
     assert_equal "$stderr" ""
     assert_equal "$(docker_stub_count inspect)" 1
     assert_docker_not_called image

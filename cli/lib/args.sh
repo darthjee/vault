@@ -16,6 +16,7 @@
 #   ARGS_VOLUMES, ARGS_VOLUMES_SET  -v/--volume entries
 #   ARGS_ENVS, ARGS_ENVS_SET        -e/--env entries (never validated)
 #   ARGS_ENV_FILES, ARGS_ENV_FILES_SET  --env-file entries
+#   ARGS_LOG_OPTS, ARGS_LOG_OPTS_SET  --log-opt entries (KEY=VALUE, up/run)
 #   ARGS_ATTACH                     1 with -f/--attach (up)
 #   ARGS_FOLLOW                     1 with -f/--follow (logs)
 #   ARGS_HELP                       1 with -h/--help (parsing stops there)
@@ -151,6 +152,8 @@ _args_reset() {
   ARGS_ENVS_SET=0
   ARGS_ENV_FILES=()
   ARGS_ENV_FILES_SET=0
+  ARGS_LOG_OPTS=()
+  ARGS_LOG_OPTS_SET=0
   ARGS_ATTACH=0
   ARGS_FOLLOW=0
   ARGS_HELP=0
@@ -168,7 +171,7 @@ _args_key() {
     -h | --help) echo help ;;
     --name) echo name ;;
     --image) echo image ;;
-    --runtime | -p | --port | -v | --volume | -e | --env | --env-file)
+    --runtime | -p | --port | -v | --volume | -e | --env | --env-file | --log-opt)
       case "$command" in
         up | run) _args_canonical "$opt" ;;
       esac
@@ -199,6 +202,7 @@ _args_canonical() {
     -v | --volume) echo volume ;;
     -e | --env) echo env ;;
     --env-file) echo env-file ;;
+    --log-opt) echo log-opt ;;
   esac
 }
 
@@ -256,6 +260,14 @@ _args_store() {
       [ -n "$value" ] || { _args_bad_value "$opt" "$value"; return 2; }
       ARGS_ENV_FILES+=("$value")
       ARGS_ENV_FILES_SET=1
+      ;;
+    log-opt)
+      case "$value" in
+        ?*=*) ;;
+        *) _args_bad_value "$opt" "$value"; return 2 ;;
+      esac
+      ARGS_LOG_OPTS+=("$value")
+      ARGS_LOG_OPTS_SET=1
       ;;
   esac
   return 0

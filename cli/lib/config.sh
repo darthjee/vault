@@ -19,6 +19,7 @@ config_reset() {
   CONFIG_RC_VOLUMES=()
   CONFIG_RC_ENVS=()
   CONFIG_RC_ENV_FILES=()
+  CONFIG_RC_LOG_OPTS=()
 }
 
 # Parses .vaultrc lines from stdin into CONFIG_RC_*.
@@ -28,7 +29,7 @@ config_reset() {
 # Sets: CONFIG_RC_NAME(_SET), CONFIG_RC_IMAGE(_SET), CONFIG_RC_RUNTIME(_SET),
 #   CONFIG_RC_STOP_TIMEOUT(_SET) (scalars, the last line wins), and the
 #   arrays CONFIG_RC_PORTS, CONFIG_RC_VOLUMES, CONFIG_RC_ENVS,
-#   CONFIG_RC_ENV_FILES (file order).
+#   CONFIG_RC_ENV_FILES, CONFIG_RC_LOG_OPTS (file order).
 # Unknown keys warn and are skipped. Returns 1 on a line without "=" or a
 # known key with an invalid value (the error names the line).
 config_parse() {
@@ -65,7 +66,8 @@ config_parse() {
 #   CONFIG_IMAGE (default darthjee/vault:<vault-version>), CONFIG_RUNTIME
 #   (default auto), CONFIG_STOP_TIMEOUT (default 60), and the arrays
 #   CONFIG_PORTS (default 3000:80 when no source gives a port),
-#   CONFIG_VOLUMES, CONFIG_ENVS, CONFIG_ENV_FILES.
+#   CONFIG_VOLUMES, CONFIG_ENVS, CONFIG_ENV_FILES, CONFIG_LOG_OPTS (deduped by
+#   key, the last occurrence wins).
 config_merge() {
   local version="$1"
 
@@ -100,6 +102,13 @@ config_merge() {
   else
     CONFIG_ENV_FILES=(${CONFIG_RC_ENV_FILES[@]+"${CONFIG_RC_ENV_FILES[@]}"})
   fi
+
+  if [ "$ARGS_LOG_OPTS_SET" = 1 ]; then
+    CONFIG_LOG_OPTS=(${ARGS_LOG_OPTS[@]+"${ARGS_LOG_OPTS[@]}"})
+  else
+    CONFIG_LOG_OPTS=(${CONFIG_RC_LOG_OPTS[@]+"${CONFIG_RC_LOG_OPTS[@]}"})
+  fi
+  _config_dedupe_log_opts
   return 0
 }
 
@@ -156,11 +165,40 @@ _config_set() {
       [ -n "$value" ] || { _config_bad_value "$number" "$key" "$value"; return 1; }
       CONFIG_RC_ENV_FILES+=("$(_config_resolve_path "$dir" "$value")")
       ;;
+    log-opt)
+      case "$value" in
+        ?*=*) ;;
+        *) _config_bad_value "$number" "$key" "$value"; return 1 ;;
+      esac
+      CONFIG_RC_LOG_OPTS+=("$value")
+      ;;
     *)
       output_warning ".vaultrc:$number: unknown key '$key'"
       ;;
   esac
   return 0
+}
+
+# Keeps the last occurrence of each log-opt key (the text before the first
+# "="; parsing guarantees every entry has one), preserving the order of the
+# entries that survive.
+# Usage: _config_dedupe_log_opts
+# Reads and rewrites CONFIG_LOG_OPTS.
+_config_dedupe_log_opts() {
+  local i j key later kept=() duplicate
+  for ((i = 0; i < ${#CONFIG_LOG_OPTS[@]}; i++)); do
+    key="${CONFIG_LOG_OPTS[i]%%=*}"
+    duplicate=0
+    for ((j = i + 1; j < ${#CONFIG_LOG_OPTS[@]}; j++)); do
+      later="${CONFIG_LOG_OPTS[j]%%=*}"
+      if [ "$later" = "$key" ]; then
+        duplicate=1
+        break
+      fi
+    done
+    [ "$duplicate" = 1 ] || kept+=("${CONFIG_LOG_OPTS[i]}")
+  done
+  CONFIG_LOG_OPTS=(${kept[@]+"${kept[@]}"})
 }
 
 # Prints the flag value when set, else the .vaultrc value when set, else

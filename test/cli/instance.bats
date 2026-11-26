@@ -131,3 +131,79 @@ vault: hint: is Docker running, and can this user access it?"
 
   assert_equal "${#INSTANCE_TTY_ARGS[@]}" 0
 }
+
+@test "instance_logs prints the bare driver without options" {
+  run instance_logs json-file ""
+
+  assert_success
+  assert_output json-file
+}
+
+@test "instance_logs joins the options with a comma" {
+  run instance_logs json-file "max-file=2 max-size=10m "
+
+  assert_output "json-file max-file=2, max-size=10m"
+}
+
+@test "instance_logs masks token, password, secret and credential values" {
+  run instance_logs splunk "splunk-token=a Splunk-Password=b aws-secret=c some-credential=d"
+
+  assert_output "splunk splunk-token=***, Splunk-Password=***, aws-secret=***, some-credential=***"
+}
+
+@test "instance_logs leaves other values unchanged" {
+  run instance_logs fluentd "max-size=10m tag={{.Name}} gelf-tls-key=/path"
+
+  assert_output "fluentd max-size=10m, tag={{.Name}}, gelf-tls-key=/path"
+}
+
+# Runs instance_warn_stale_log_opts with the running <driver> <opts> and the
+# requested entries as the remaining arguments.
+warn_stale() {
+  INSTANCE_LOG_DRIVER="$1"
+  INSTANCE_LOG_OPTS="$2"
+  shift 2
+  CONFIG_LOG_OPTS=("$@")
+  instance_warn_stale_log_opts
+}
+
+@test "instance_warn_stale_log_opts is silent when nothing is requested" {
+  run --separate-stderr warn_stale json-file "max-size=1m "
+
+  assert_success
+  assert_equal "$stderr" ""
+}
+
+@test "instance_warn_stale_log_opts is silent for the same set reordered" {
+  run --separate-stderr warn_stale json-file "max-file=2 max-size=10m " max-size=10m max-file=2
+
+  assert_success
+  assert_equal "$stderr" ""
+}
+
+@test "instance_warn_stale_log_opts is silent for a superset" {
+  run --separate-stderr warn_stale json-file "max-file=3 max-size=10m " max-size=10m
+
+  assert_equal "$stderr" ""
+}
+
+@test "instance_warn_stale_log_opts warns for a differing value" {
+  run --separate-stderr warn_stale json-file "max-size=1m " max-size=10m
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "instance_warn_stale_log_opts warns for a missing key" {
+  run --separate-stderr warn_stale json-file "" max-size=10m
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: log options differ from the running instance (json-file); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "instance_warn_stale_log_opts masks sensitive values in the message" {
+  run --separate-stderr warn_stale splunk "splunk-token=abc " splunk-token=xyz
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: log options differ from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them"
+}

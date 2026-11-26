@@ -27,6 +27,7 @@ Options:
   -v, --volume <SRC:DST>     Extra mount, repeatable (up, run)
   -e, --env <KEY=VALUE>      Env var, repeatable (up, run)
   --env-file <file>          Env file, repeatable (up, run)
+  --log-opt <KEY=VALUE>      Log driver option, repeatable (up, run)
   --stop-timeout <seconds>   Stop timeout (up, run, down)
   -f, --attach               Run in the foreground (up)
   -f, --follow               Follow the logs (logs)

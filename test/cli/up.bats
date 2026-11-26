@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for `vault up`, against the source tree (cli/bin/vault) and the
 # bundle (build/vault), with the stub docker.
-# shellcheck disable=SC2154 # output/stderr/status are set by bats' run
+# shellcheck disable=SC2154,SC2030,SC2031 # output/stderr/status are set by bats' run
 
 bats_require_minimum_version 1.5.0
 
@@ -38,6 +38,66 @@ vault: hint: fix sysbox or use --runtime=privileged'
   done
 }
 
+@test "up emits --log-opt after -e and before --name, in order" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged -e A=1 --log-opt max-size=10m --log-opt max-file=2
+
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 -e A=1 --log-opt max-size=10m --log-opt max-file=2 \
+      --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up without --log-opt emits no --log-opt" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged
+
+    assert_success
+    run grep -c -e --log-opt "$DOCKER_STUB_LOG"
+    assert_output 0
+  done
+}
+
+@test "a log-opt value with spaces stays one argument" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged --log-opt "max-size=1m --privileged"
+
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-opt "max-size=1m --privileged" --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up emits the .vaultrc log-opt entries in file order, a flag replaces them" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  printf 'log-opt=max-size=10m\nlog-opt=max-file=2\n' >"$PROJ/.vaultrc"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-opt max-size=10m --log-opt max-file=2 \
+      --name vault-proj -d "$IMAGE"
+
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-opt tag=x
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-opt tag=x --name vault-proj -d "$IMAGE"
+  done
+}
+
 @test "up -f runs in the foreground, shows its output and no started line" {
   local vault
   docker_stub_set run "stack output"
@@ -70,7 +130,9 @@ vault: hint: fix sysbox or use --runtime=privileged'
 sha256:abc
 sysbox-runc false
 3000->80/tcp 
-PATH RAILS_ENV SECRET_KEY_BASE "
+PATH RAILS_ENV SECRET_KEY_BASE 
+json-file
+max-size=10m "
   docker_stub_set image "PATH "
   for vault in "${VAULTS[@]}"; do
     vault_run "$vault" up --runtime privileged
@@ -83,11 +145,109 @@ image:    $IMAGE
 runtime:  sysbox-runc
 ports:    3000->80/tcp
 volume:   vault-proj-data
-env:      RAILS_ENV, SECRET_KEY_BASE"
+env:      RAILS_ENV, SECRET_KEY_BASE
+logs:     json-file max-size=10m"
     assert_equal "$stderr" ""
     assert_docker_called inspect --format "$STATUS_FORMAT" vault-proj
     assert_docker_not_called run
     assert_docker_not_called rm
+  done
+}
+
+# Stubs a running instance whose log config is <driver> and <opts>.
+stub_running_logs() {
+  docker_stub_set_nth inspect 1 true
+  docker_stub_set_nth inspect 2 "$IMAGE
+sha256:abc
+sysbox-runc false
+3000->80/tcp 
+PATH 
+$1
+$2"
+  docker_stub_set image "PATH "
+}
+
+# Runs up with the given args on every vault; expects exit 0, the 9-line
+# status on stdout and, when <warning> is non-empty, exactly that stderr.
+check_up_running() {
+  local warning="$1" vault
+  shift
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged "$@"
+
+    assert_success
+    assert_line "logs:     $EXPECTED_LOGS"
+    assert_equal "$stderr" "$warning"
+    assert_docker_not_called run
+  done
+}
+
+@test "up on a running instance warns when a --log-opt value differs" {
+  stub_running_logs json-file "max-size=1m "
+  EXPECTED_LOGS="json-file max-size=1m"
+  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them" \
+    --log-opt max-size=10m
+}
+
+@test "up on a running instance warns when a .vaultrc log-opt differs" {
+  stub_running_logs json-file "max-size=1m "
+  printf 'log-opt=max-size=10m\n' >"$PROJ/.vaultrc"
+  EXPECTED_LOGS="json-file max-size=1m"
+  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "up on a running instance warns when a requested key is missing" {
+  stub_running_logs json-file ""
+  EXPECTED_LOGS="json-file"
+  check_up_running "vault: warning: log options differ from the running instance (json-file); run 'vault down' then 'vault up' to apply them" \
+    --log-opt max-size=10m
+}
+
+@test "up on a running instance masks sensitive values in the warning" {
+  stub_running_logs splunk "splunk-token=abc "
+  EXPECTED_LOGS="splunk splunk-token=***"
+  check_up_running "vault: warning: log options differ from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them" \
+    --log-opt splunk-token=xyz
+}
+
+@test "up on a running instance is silent when the options match in another order" {
+  stub_running_logs json-file "max-file=2 max-size=10m "
+  EXPECTED_LOGS="json-file max-file=2, max-size=10m"
+  check_up_running "" --log-opt max-size=10m --log-opt max-file=2
+}
+
+@test "up on a running instance is silent when the running set has extra keys" {
+  stub_running_logs json-file "max-file=3 max-size=10m "
+  EXPECTED_LOGS="json-file max-file=3, max-size=10m"
+  check_up_running "" --log-opt max-size=10m
+}
+
+@test "up on a running instance is silent when duplicate keys dedupe to the running value" {
+  stub_running_logs json-file "max-size=10m "
+  EXPECTED_LOGS="json-file max-size=10m"
+  check_up_running "" --log-opt max-size=1m --log-opt max-size=10m
+}
+
+@test "up on a running instance is silent with no log option requested" {
+  stub_running_logs json-file "max-size=1m "
+  EXPECTED_LOGS="json-file max-size=1m"
+  check_up_running ""
+}
+
+@test "up when stopped applies the log options, without a warning" {
+  local vault
+  docker_stub_set inspect false
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged --log-opt max-size=10m
+
+    assert_success
+    assert_output "vault-proj started"
+    assert_equal "$stderr" ""
+    assert_docker_called rm vault-proj
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-opt max-size=10m --name vault-proj -d "$IMAGE"
   done
 }
 

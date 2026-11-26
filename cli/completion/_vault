@@ -31,6 +31,7 @@ _vault() {
     '*'{-v,--volume=}'[extra mount, repeatable]:SRC\:DST:_files'
     '*'{-e,--env=}'[environment variable, repeatable]:KEY=VALUE: '
     '*--env-file=[env file, repeatable]:env file:_files'
+    '*--log-opt=[log driver option, repeatable]:KEY=VALUE: '
   )
   stop_opt=('--stop-timeout=[stop timeout in seconds]:seconds: ')
 

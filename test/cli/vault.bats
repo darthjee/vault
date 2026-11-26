@@ -45,6 +45,7 @@ check_help() {
     assert_line --regexp "^  $command +[A-Z]"
   done
   assert_line --partial "-h, --help"
+  assert_line --partial "--log-opt <KEY=VALUE>"
   assert_equal "$stderr" ""
 }
 

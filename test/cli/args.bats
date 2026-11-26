@@ -56,6 +56,8 @@ check_usage_error() {
   assert_equal "$ARGS_VOLUMES_SET" 0
   assert_equal "$ARGS_ENVS_SET" 0
   assert_equal "$ARGS_ENV_FILES_SET" 0
+  assert_equal "$ARGS_LOG_OPTS_SET" 0
+  assert_equal "${#ARGS_LOG_OPTS[@]}" 0
   assert_equal "$ARGS_DIR_SET" 0
   assert_equal "${#ARGS_PORTS[@]}" 0
   assert_equal "${#ARGS_PASSTHROUGH[@]}" 0
@@ -269,6 +271,11 @@ vault: hint: run \"vault help\"" logs --attach
 vault: hint: run \"vault help\"" up --follow
   check_usage_error "vault: error: unknown option '-e'
 vault: hint: run \"vault help\"" compose -e A=1
+  local cmd
+  for cmd in down logs status compose; do
+    check_usage_error "vault: error: unknown option '--log-opt'
+vault: hint: run \"vault help\"" "$cmd" --log-opt max-size=10m
+  done
 }
 
 @test "--stop-timeout is accepted by down" {
@@ -325,6 +332,37 @@ vault: hint: run \"vault help\"" compose -e A=1
   check_usage_error "vault: error: invalid value for -p: ''" up -p ""
   check_usage_error "vault: error: invalid value for --volume: ''" up --volume=
   check_usage_error "vault: error: invalid value for --env-file: ''" up --env-file ""
+  check_usage_error "vault: error: invalid value for --log-opt: ''" up --log-opt ""
+}
+
+@test "log-opt is repeatable on up and run, values kept in order" {
+  args_parse up --log-opt max-size=10m --log-opt max-file=5
+  assert_equal "$ARGS_LOG_OPTS_SET" 1
+  assert_equal "${#ARGS_LOG_OPTS[@]}" 2
+  assert_equal "${ARGS_LOG_OPTS[0]}" max-size=10m
+  assert_equal "${ARGS_LOG_OPTS[1]}" max-file=5
+
+  args_parse run --log-opt max-size=10m app config
+  assert_equal "${ARGS_LOG_OPTS[0]}" max-size=10m
+}
+
+@test "log-opt accepts --log-opt=value" {
+  args_parse up --log-opt=max-size=10m
+
+  assert_equal "${#ARGS_LOG_OPTS[@]}" 1
+  assert_equal "${ARGS_LOG_OPTS[0]}" max-size=10m
+}
+
+@test "a log-opt value without = is a bad value" {
+  check_usage_error "vault: error: invalid value for --log-opt: 'max-size'" up --log-opt max-size
+}
+
+@test "a log-opt value with an empty key is a bad value" {
+  check_usage_error "vault: error: invalid value for --log-opt: '=10m'" up --log-opt =10m
+}
+
+@test "--log-opt max-size 10m is a bad value, not a dir" {
+  check_usage_error "vault: error: invalid value for --log-opt: 'max-size'" up --log-opt max-size 10m
 }
 
 @test "args_valid_name, args_valid_runtime and args_valid_stop_timeout" {
