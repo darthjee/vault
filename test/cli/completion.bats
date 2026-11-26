@@ -72,6 +72,7 @@ version"
 --env-file
 --help
 --image
+--log-driver
 --log-opt
 --name
 --port
@@ -92,6 +93,7 @@ version"
   assert_line -- --runtime
   assert_line -- --stop-timeout
   assert_line -- --env-file
+  assert_line -- --log-driver
   assert_line -- --log-opt
   refute_line -- -f
   refute_line -- --attach
@@ -102,6 +104,7 @@ version"
   for command in down logs status compose; do
     run complete_words vault "$command" -
     refute_line -- --log-opt
+    refute_line -- --log-driver
   done
 }
 
@@ -361,4 +364,19 @@ vault-beta"
 
   assert_success
   assert_output ""
+}
+
+@test "--log-driver offers the driver hints filtered by prefix" {
+  run complete_words vault up --log-driver j
+
+  assert_success
+  assert_output "journald
+json-file"
+}
+
+@test "--log-driver=<TAB>, split on '=', offers the driver hints" {
+  run complete_words vault run --log-driver = 'lo'
+
+  assert_success
+  assert_output "local"
 }
