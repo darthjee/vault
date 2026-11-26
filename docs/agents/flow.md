@@ -102,14 +102,14 @@ User-facing wording: [the CLI guide](../guides/vault/cli.md).
    3. `<dir>/.vault.env`, when it exists, placed as the first `--env-file`;
    4. the ordered `docker run` argument list (`container.sh`): runtime, `--stop-timeout`,
       `-v <dir>:/vault` (skipped for `--image` without `[dir]`),
-      `-v vault-<name>-data:/var/lib/docker`, extra `-v`, `-p`, `--env-file`, `-e`, `--log-opt <opt>` (one pair per entry, after flags/`.vaultrc` dedupe by
+      `-v vault-<name>-data:/var/lib/docker`, extra `-v`, `-p`, `--env-file`, `-e`, `--log-driver <name>` (only when requested), `--log-opt <opt>` (one pair per entry, after flags/`.vaultrc` dedupe by
       key, last wins), then
       `--name vault-<name> [-d]` (`up`) or `[-i] [-t] --rm` (`run`), the image and (`run`)
       the compose arguments.
 4. **`up`** — warns when the mounted dir has no compose file (`COMPOSE_FILE` may point
    elsewhere), then reads the instance state with one `docker inspect`:
-   - running → prints `vault-<name> is already running` and the status, exit 0 (stderr gets a warning when the requested `--log-opt` entries
-     are not among the running options);
+   - running → prints `vault-<name> is already running` and the status, exit 0 (stderr gets a warning `log configuration differs from the running instance (<driver> <opts>)` when the requested driver or `--log-opt` entries
+     differ from the running ones);
    - stopped → `docker rm`, then a fresh run with the current options (the volume is kept);
    - missing → run.
    Detached: `docker run -d`, then `vault-<name> started`. With `-f`: foreground, Ctrl+C only
