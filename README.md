@@ -5,9 +5,9 @@
 
 ![vault](https://raw.githubusercontent.com/darthjee/vault/master/vault.png)
 
-**Current Version:** [0.3.0](https://github.com/darthjee/vault/releases/tag/0.3.0)
+**Current Version:** [0.4.0](https://github.com/darthjee/vault/releases/tag/0.4.0)
 
-**Next Release:** [0.3.1](https://github.com/darthjee/vault/compare/0.3.0...main)
+**Next Release:** [0.4.1](https://github.com/darthjee/vault/compare/0.4.0...main)
 
 Vault is a Docker-in-Docker image that runs a `docker compose` stack inside a
 single container. An application and its dependencies (database, cache, ...)
