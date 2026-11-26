@@ -405,3 +405,79 @@ vault: hint: is Docker running, and can this user access it?"
     assert_equal "$(docker_stub_calls)" ""
   done
 }
+
+@test "up emits --log-driver after -e and before --log-opt and --name" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged -e A=1 --log-driver local
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 -e A=1 --log-driver local --name vault-proj -d "$IMAGE"
+
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver local --log-opt max-size=10m
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver local --log-opt max-size=10m --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up without a log driver emits no --log-driver" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged
+    assert_success
+    run grep -c -e --log-driver "$DOCKER_STUB_LOG"
+    assert_output 0
+  done
+}
+
+@test "up takes log-driver from .vaultrc, a flag overrides it" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  printf 'log-driver=journald\n' >"$PROJ/.vaultrc"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver journald --name vault-proj -d "$IMAGE"
+
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver local
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver local --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up emits --log-driver none as is" {
+  local vault
+  docker_stub_set run "0123456789abcdef"
+  for vault in "${VAULTS[@]}"; do
+    : >"$DOCKER_STUB_LOG"
+    vault_run "$vault" up --runtime privileged --log-driver none
+    assert_success
+    assert_docker_called run --privileged --stop-timeout 60 \
+      -v "$PROJ:/vault" -v vault-proj-data:/var/lib/docker \
+      -p 3000:80 --log-driver none --name vault-proj -d "$IMAGE"
+  done
+}
+
+@test "up with a driver Docker rejects fails with exit 1 and Docker's message" {
+  local vault
+  docker_stub_set run "" 1 "docker: Error response from daemon: unknown log driver."
+  for vault in "${VAULTS[@]}"; do
+    vault_run "$vault" up --runtime privileged --log-driver nope
+
+    assert_failure 1
+    assert_equal "$stderr" "docker: Error response from daemon: unknown log driver."
+  done
+}
