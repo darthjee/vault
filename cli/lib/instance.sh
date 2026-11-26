@@ -123,25 +123,31 @@ instance_logs() {
   fi
 }
 
-# Warns on stderr when a requested log option (CONFIG_LOG_OPTS) is not
-# present, with the same value, among the running instance's options
-# (INSTANCE_LOG_OPTS). Extra running keys (daemon.json defaults) are
-# ignored. Silent when none are requested. Always returns 0.
-# Usage: instance_warn_stale_log_opts
-instance_warn_stale_log_opts() {
-  local item missing=""
-  [ "${#CONFIG_LOG_OPTS[@]}" -gt 0 ] || return 0
-  for item in "${CONFIG_LOG_OPTS[@]}"; do
-    case " $INSTANCE_LOG_OPTS " in
-      *" $item "*) ;;
-      *)
-        missing="$item"
-        break
-        ;;
-    esac
-  done
-  [ -z "$missing" ] && return 0
-  output_warning "log options differ from the running instance ($(instance_logs "$INSTANCE_LOG_DRIVER" "$INSTANCE_LOG_OPTS")); run 'vault down' then 'vault up' to apply them"
+# Warns on stderr when the requested log configuration differs from the
+# running instance: a requested driver (CONFIG_LOG_DRIVER) that differs from
+# INSTANCE_LOG_DRIVER, or a requested log option (CONFIG_LOG_OPTS) that is not
+# present, with the same value, among INSTANCE_LOG_OPTS. Extra running keys
+# (daemon.json defaults) are ignored. Silent when nothing is requested or
+# everything requested matches. Always returns 0.
+# Usage: instance_warn_stale_log_config
+instance_warn_stale_log_config() {
+  local item differs=0
+  if [ -n "$CONFIG_LOG_DRIVER" ] && [ "$CONFIG_LOG_DRIVER" != "$INSTANCE_LOG_DRIVER" ]; then
+    differs=1
+  fi
+  if [ "$differs" = 0 ] && [ "${#CONFIG_LOG_OPTS[@]}" -gt 0 ]; then
+    for item in "${CONFIG_LOG_OPTS[@]}"; do
+      case " $INSTANCE_LOG_OPTS " in
+        *" $item "*) ;;
+        *)
+          differs=1
+          break
+          ;;
+      esac
+    done
+  fi
+  [ "$differs" = 1 ] || return 0
+  output_warning "log configuration differs from the running instance ($(instance_logs "$INSTANCE_LOG_DRIVER" "$INSTANCE_LOG_OPTS")); run 'vault down' then 'vault up' to apply them"
   return 0
 }
 

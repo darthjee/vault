@@ -185,7 +185,7 @@ check_up_running() {
 @test "up on a running instance warns when a --log-opt value differs" {
   stub_running_logs json-file "max-size=1m "
   EXPECTED_LOGS="json-file max-size=1m"
-  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them" \
     --log-opt max-size=10m
 }
 
@@ -193,20 +193,20 @@ check_up_running() {
   stub_running_logs json-file "max-size=1m "
   printf 'log-opt=max-size=10m\n' >"$PROJ/.vaultrc"
   EXPECTED_LOGS="json-file max-size=1m"
-  check_up_running "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
 }
 
 @test "up on a running instance warns when a requested key is missing" {
   stub_running_logs json-file ""
   EXPECTED_LOGS="json-file"
-  check_up_running "vault: warning: log options differ from the running instance (json-file); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (json-file); run 'vault down' then 'vault up' to apply them" \
     --log-opt max-size=10m
 }
 
 @test "up on a running instance masks sensitive values in the warning" {
   stub_running_logs splunk "splunk-token=abc "
   EXPECTED_LOGS="splunk splunk-token=***"
-  check_up_running "vault: warning: log options differ from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them" \
+  check_up_running "vault: warning: log configuration differs from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them" \
     --log-opt splunk-token=xyz
 }
 
@@ -480,4 +480,24 @@ vault: hint: is Docker running, and can this user access it?"
     assert_failure 1
     assert_equal "$stderr" "docker: Error response from daemon: unknown log driver."
   done
+}
+
+@test "up on a running instance warns when --log-driver differs" {
+  stub_running_logs journald ""
+  EXPECTED_LOGS="journald"
+  check_up_running "vault: warning: log configuration differs from the running instance (journald); run 'vault down' then 'vault up' to apply them" \
+    --log-driver local
+}
+
+@test "up on a running instance warns when the .vaultrc log-driver differs" {
+  stub_running_logs journald ""
+  printf 'log-driver=local\n' >"$PROJ/.vaultrc"
+  EXPECTED_LOGS="journald"
+  check_up_running "vault: warning: log configuration differs from the running instance (journald); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "up on a running instance is silent when the log driver matches" {
+  stub_running_logs local ""
+  EXPECTED_LOGS="local"
+  check_up_running "" --log-driver local
 }

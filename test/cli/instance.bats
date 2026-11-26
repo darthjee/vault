@@ -157,53 +157,92 @@ vault: hint: is Docker running, and can this user access it?"
   assert_output "fluentd max-size=10m, tag={{.Name}}, gelf-tls-key=/path"
 }
 
-# Runs instance_warn_stale_log_opts with the running <driver> <opts> and the
-# requested entries as the remaining arguments.
+# Runs instance_warn_stale_log_config with the running <driver> <opts> and the
+# requested entries as the remaining arguments (no driver requested).
 warn_stale() {
+  CONFIG_LOG_DRIVER=""
   INSTANCE_LOG_DRIVER="$1"
   INSTANCE_LOG_OPTS="$2"
   shift 2
   CONFIG_LOG_OPTS=("$@")
-  instance_warn_stale_log_opts
+  instance_warn_stale_log_config
 }
 
-@test "instance_warn_stale_log_opts is silent when nothing is requested" {
+@test "instance_warn_stale_log_config is silent when nothing is requested" {
   run --separate-stderr warn_stale json-file "max-size=1m "
 
   assert_success
   assert_equal "$stderr" ""
 }
 
-@test "instance_warn_stale_log_opts is silent for the same set reordered" {
+@test "instance_warn_stale_log_config is silent for the same set reordered" {
   run --separate-stderr warn_stale json-file "max-file=2 max-size=10m " max-size=10m max-file=2
 
   assert_success
   assert_equal "$stderr" ""
 }
 
-@test "instance_warn_stale_log_opts is silent for a superset" {
+@test "instance_warn_stale_log_config is silent for a superset" {
   run --separate-stderr warn_stale json-file "max-file=3 max-size=10m " max-size=10m
 
   assert_equal "$stderr" ""
 }
 
-@test "instance_warn_stale_log_opts warns for a differing value" {
+@test "instance_warn_stale_log_config warns for a differing value" {
   run --separate-stderr warn_stale json-file "max-size=1m " max-size=10m
 
   assert_success
-  assert_equal "$stderr" "vault: warning: log options differ from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
+  assert_equal "$stderr" "vault: warning: log configuration differs from the running instance (json-file max-size=1m); run 'vault down' then 'vault up' to apply them"
 }
 
-@test "instance_warn_stale_log_opts warns for a missing key" {
+@test "instance_warn_stale_log_config warns for a missing key" {
   run --separate-stderr warn_stale json-file "" max-size=10m
 
   assert_success
-  assert_equal "$stderr" "vault: warning: log options differ from the running instance (json-file); run 'vault down' then 'vault up' to apply them"
+  assert_equal "$stderr" "vault: warning: log configuration differs from the running instance (json-file); run 'vault down' then 'vault up' to apply them"
 }
 
-@test "instance_warn_stale_log_opts masks sensitive values in the message" {
+@test "instance_warn_stale_log_config masks sensitive values in the message" {
   run --separate-stderr warn_stale splunk "splunk-token=abc " splunk-token=xyz
 
   assert_success
-  assert_equal "$stderr" "vault: warning: log options differ from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them"
+  assert_equal "$stderr" "vault: warning: log configuration differs from the running instance (splunk splunk-token=***); run 'vault down' then 'vault up' to apply them"
+}
+
+# Like warn_stale, with a requested <driver> as the third argument.
+warn_stale_driver() {
+  INSTANCE_LOG_DRIVER="$1"
+  INSTANCE_LOG_OPTS="$2"
+  CONFIG_LOG_DRIVER="$3"
+  shift 3
+  CONFIG_LOG_OPTS=(${@+"$@"})
+  instance_warn_stale_log_config
+}
+
+@test "instance_warn_stale_log_config warns when the driver differs" {
+  run --separate-stderr warn_stale_driver journald "" local
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: log configuration differs from the running instance (journald); run 'vault down' then 'vault up' to apply them"
+}
+
+@test "instance_warn_stale_log_config is silent when the driver matches" {
+  run --separate-stderr warn_stale_driver local "" local
+
+  assert_success
+  assert_equal "$stderr" ""
+}
+
+@test "instance_warn_stale_log_config is silent when no driver is requested" {
+  run --separate-stderr warn_stale journald ""
+
+  assert_success
+  assert_equal "$stderr" ""
+}
+
+@test "instance_warn_stale_log_config warns when the driver matches but an option is missing" {
+  run --separate-stderr warn_stale_driver local "" local max-size=10m
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: log configuration differs from the running instance (local); run 'vault down' then 'vault up' to apply them"
 }
