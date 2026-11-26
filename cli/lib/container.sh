@@ -5,7 +5,7 @@
 # Builds the full `docker run` argument list (starting with "run") into
 # CONTAINER_ARGS, from the resolved values:
 #   RUNTIME_ARG (runtime_select), CONFIG_STOP_TIMEOUT, CONFIG_VOLUMES,
-#   CONFIG_PORTS, CONFIG_ENV_FILES (.vault.env first), CONFIG_ENVS,
+#   CONFIG_PORTS, CONFIG_ENV_FILES (.vault.env first), CONFIG_ENVS, CONFIG_LOG_OPTS,
 #   CONFIG_IMAGE (config_merge) and, for run, ARGS_PASSTHROUGH.
 # Usage: container_build_args <up|run> <name> <mount-dir> <attach 0|1> [tty-args...]
 #   mount-dir: the absolute dir mounted on /vault; "" for no /vault mount
@@ -17,6 +17,7 @@
 #   [-v <dir>:/vault] -v vault-<name>-data:/var/lib/docker
 #   -v <extra>... -p <port>...
 #   --env-file <file>... -e <env>...
+#   --log-opt <opt>...
 #   up: --name vault-<name> [-d unless attached] | run: [-i] [-t] --rm
 #   <image> [run: <compose args>...]
 container_build_args() {
@@ -41,6 +42,9 @@ container_build_args() {
   done
   for item in ${CONFIG_ENVS[@]+"${CONFIG_ENVS[@]}"}; do
     CONTAINER_ARGS+=(-e "$item")
+  done
+  for item in ${CONFIG_LOG_OPTS[@]+"${CONFIG_LOG_OPTS[@]}"}; do
+    CONTAINER_ARGS+=(--log-opt "$item")
   done
 
   case "$command" in

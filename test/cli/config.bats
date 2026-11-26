@@ -47,6 +47,8 @@ port=3443:443
 volume=/data/shared:/shared
 env=RAILS_ENV=production
 env-file=/etc/app.env
+log-opt=max-size=10m
+log-opt=max-file=2
 stop-timeout=30
 EOF
 
@@ -61,6 +63,9 @@ EOF
   assert_equal "${CONFIG_RC_VOLUMES[0]}" /data/shared:/shared
   assert_equal "${CONFIG_RC_ENVS[0]}" RAILS_ENV=production
   assert_equal "${CONFIG_RC_ENV_FILES[0]}" /etc/app.env
+  assert_equal "${#CONFIG_RC_LOG_OPTS[@]}" 2
+  assert_equal "${CONFIG_RC_LOG_OPTS[0]}" max-size=10m
+  assert_equal "${CONFIG_RC_LOG_OPTS[1]}" max-file=2
 }
 
 @test "whitespace-only lines are blank" {
@@ -195,11 +200,29 @@ runtime=foo
 
 @test "an empty image, port, volume or env-file fails (exit 1)" {
   local key
-  for key in image port volume env-file; do
+  for key in image port volume env-file log-opt; do
     write_rc "$key=
 "
     check_rc_error "vault: error: .vaultrc:1: invalid value for $key: ''"
   done
+}
+
+@test "log-opt without = or with an empty key fails (exit 1)" {
+  local value
+  for value in novalue =x; do
+    write_rc "log-opt=$value
+"
+    check_rc_error "vault: error: .vaultrc:1: invalid value for log-opt: '$value'"
+  done
+}
+
+@test "log-opt with spaces around = is an unknown key" {
+  write_rc 'log-opt = max-size=10m
+'
+  run --separate-stderr config_parse /proj <"$RC"
+
+  assert_success
+  assert_equal "$stderr" "vault: warning: .vaultrc:1: unknown key 'log-opt '"
 }
 
 @test "env values are never validated nor echoed" {
@@ -323,6 +346,54 @@ EOF
   assert_equal "${CONFIG_VOLUMES[0]}" "/x y:/z"
   assert_equal "${#CONFIG_ENV_FILES[@]}" 1
   assert_equal "${CONFIG_ENV_FILES[0]}" g
+}
+
+@test "merge: log-opt flags replace the .vaultrc entries" {
+  args_parse up --log-opt tag=x
+  config_parse /proj <<'EOF'
+log-opt=max-size=10m
+log-opt=max-file=2
+EOF
+  config_merge 1.2.3
+
+  assert_equal "${#CONFIG_LOG_OPTS[@]}" 1
+  assert_equal "${CONFIG_LOG_OPTS[0]}" tag=x
+}
+
+@test "merge: the .vaultrc log-opt entries are used without a flag" {
+  args_parse up
+  config_parse /proj <<'EOF'
+log-opt=max-size=10m
+EOF
+  config_merge 1.2.3
+
+  assert_equal "${CONFIG_LOG_OPTS[*]}" max-size=10m
+}
+
+@test "merge: no log-opt source leaves the list empty" {
+  args_parse up
+  config_reset
+  config_merge 1.2.3
+
+  assert_equal "${#CONFIG_LOG_OPTS[@]}" 0
+}
+
+@test "merge: duplicate log-opt keys keep the last one" {
+  args_parse up --log-opt max-size=1m --log-opt max-file=2 --log-opt max-size=10m
+  config_reset
+  config_merge 1.2.3
+
+  assert_equal "${#CONFIG_LOG_OPTS[@]}" 2
+  assert_equal "${CONFIG_LOG_OPTS[0]}" max-file=2
+  assert_equal "${CONFIG_LOG_OPTS[1]}" max-size=10m
+}
+
+@test "merge: distinct log-opt keys are all kept, in order" {
+  args_parse up --log-opt b=1 --log-opt a=2 --log-opt c=3=4
+  config_reset
+  config_merge 1.2.3
+
+  assert_equal "${CONFIG_LOG_OPTS[*]}" "b=1 a=2 c=3=4"
 }
 
 @test "merge: a .vaultrc port replaces the 3000:80 default" {

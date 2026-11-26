@@ -27,7 +27,7 @@ vault: error: cannot reach the Docker daemon
 vault: hint: is Docker running, and can this user access it?"
   NOT_RUNNING='vault: error: instance vault-proj is not running'
   # shellcheck disable=SC2016 # a Go template, not shell
-  STATUS_FORMAT='{{.Config.Image}}{{"\n"}}{{.Image}}{{"\n"}}{{.HostConfig.Runtime}} {{.HostConfig.Privileged}}{{"\n"}}{{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}}->{{$p}} {{end}}{{end}}{{"\n"}}{{range .Config.Env}}{{index (split . "=") 0}} {{end}}'
+  STATUS_FORMAT='{{.Config.Image}}{{"\n"}}{{.Image}}{{"\n"}}{{.HostConfig.Runtime}} {{.HostConfig.Privileged}}{{"\n"}}{{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}}->{{$p}} {{end}}{{end}}{{"\n"}}{{range .Config.Env}}{{index (split . "=") 0}} {{end}}{{"\n"}}{{.HostConfig.LogConfig.Type}}{{"\n"}}{{range $k, $v := .HostConfig.LogConfig.Config}}{{$k}}={{$v}} {{end}}'
 
   docker_stub_set inspect "" 1 "$NO_SUCH"
 }

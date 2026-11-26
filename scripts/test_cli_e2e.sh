@@ -4,7 +4,9 @@
 # Drives a real instance, named e2e-<pid>, with the test/fixture compose stack:
 #   - `vault up --runtime=privileged -p 127.0.0.1:<free port>:80` prints
 #     "vault-e2e-<pid> started", and HTTP / answers within SMOKE_TIMEOUT;
-#   - `vault status` names the container and the privileged runtime;
+#   - `vault up` is given `--log-opt max-size=10m --log-opt max-file=2`, and
+#     `vault status` names the container, the privileged runtime and a `logs:`
+#     line containing both options (real Docker accepts them);
 #   - `vault compose ps` lists the fixture's web service;
 #   - `vault down` removes the container and keeps the data volume.
 # Then installs the CLI with install.sh from that local image into a temp
@@ -73,6 +75,7 @@ cli_up() {
 
   echo "test-cli-e2e: vault up $NAME ($IMAGE) on 127.0.0.1:$PORT"
   output="$("$VAULT" up --name "$NAME" --image "$IMAGE" --runtime=privileged \
+    --log-opt max-size=10m --log-opt max-file=2 \
     -p "127.0.0.1:$PORT:80" "$FIXTURE_DIR" </dev/null 2>&1)" \
     || fail "vault up exited non-zero: $output"
   if ! grep -Fq "$CONTAINER started" <<<"$output"; then
@@ -107,6 +110,12 @@ cli_status() {
   fi
   if ! grep -Eq '^runtime:.*privileged' <<<"$output"; then
     fail "vault status did not report the privileged runtime: $output"
+  fi
+  if ! grep -Eq '^logs:.*max-file=2' <<<"$output"; then
+    fail "vault status did not report log option max-file=2: $output"
+  fi
+  if ! grep -Eq '^logs:.*max-size=10m' <<<"$output"; then
+    fail "vault status did not report log option max-size=10m: $output"
   fi
   echo "test-cli-e2e: status"
 }

@@ -72,13 +72,18 @@ instance_tty_flags() {
 # reads the image, the runtime, the ports and the env keys, and one
 # `docker image inspect` reads the image's own env keys, which are left
 # out (an image key overridden with -e is left out too). Env values are
-# never printed.
+# never printed. The last line, logs, shows the log driver and options
+# (sensitive values masked, see instance_logs).
+# Sets INSTANCE_LOG_DRIVER and INSTANCE_LOG_OPTS (the raw option words, as
+# docker reports them), both empty for a missing instance.
 # Usage: instance_status_print <name> <running|stopped|missing>
 # Returns 1 when docker inspect fails (its error is passed through).
 instance_status_print() {
   local name="$1" state="$2" container out image runtime ports keys image_keys
 
   container="$(naming_container "$name")"
+  INSTANCE_LOG_DRIVER=""
+  INSTANCE_LOG_OPTS=""
   if [ "$state" = missing ]; then
     _instance_status_line name "$container"
     _instance_status_line state 'not found'
@@ -90,6 +95,8 @@ instance_status_print() {
   runtime="$(_instance_runtime "$(_instance_line "$out" 3)")"
   ports="$(_instance_join "$(_instance_line "$out" 4)")"
   keys="$(_instance_line "$out" 5)"
+  INSTANCE_LOG_DRIVER="$(_instance_line "$out" 6)"
+  INSTANCE_LOG_OPTS="$(_instance_line "$out" 7)"
   image_keys="$(docker_run_cmd image inspect --format "$(_instance_env_keys_format)" \
     "$(_instance_line "$out" 2)" 2>/dev/null)" || image_keys=""
 
@@ -100,6 +107,42 @@ instance_status_print() {
   _instance_status_line ports "$ports"
   _instance_status_line volume "$(naming_volume "$name")"
   _instance_status_line env "$(_instance_join "$(_instance_drop_words "$keys" "$image_keys")")"
+  _instance_status_line logs "$(instance_logs "$INSTANCE_LOG_DRIVER" "$INSTANCE_LOG_OPTS")"
+}
+
+# Prints "<driver>" when there are no options, else "<driver> <opt>, <opt>".
+# Values of sensitive keys (see _instance_mask_log_opts) are printed as "***".
+# Usage: instance_logs <driver> <option-words>
+instance_logs() {
+  local driver="$1" options
+  options="$(_instance_join "$(_instance_mask_log_opts "$2")")"
+  if [ -z "$options" ]; then
+    printf '%s\n' "$driver"
+  else
+    printf '%s %s\n' "$driver" "$options"
+  fi
+}
+
+# Warns on stderr when a requested log option (CONFIG_LOG_OPTS) is not
+# present, with the same value, among the running instance's options
+# (INSTANCE_LOG_OPTS). Extra running keys (daemon.json defaults) are
+# ignored. Silent when none are requested. Always returns 0.
+# Usage: instance_warn_stale_log_opts
+instance_warn_stale_log_opts() {
+  local item missing=""
+  [ "${#CONFIG_LOG_OPTS[@]}" -gt 0 ] || return 0
+  for item in "${CONFIG_LOG_OPTS[@]}"; do
+    case " $INSTANCE_LOG_OPTS " in
+      *" $item "*) ;;
+      *)
+        missing="$item"
+        break
+        ;;
+    esac
+  done
+  [ -z "$missing" ] && return 0
+  output_warning "log options differ from the running instance ($(instance_logs "$INSTANCE_LOG_DRIVER" "$INSTANCE_LOG_OPTS")); run 'vault down' then 'vault up' to apply them"
+  return 0
 }
 
 # Warns when none of the compose file names exists in <dir> (the inner
@@ -181,12 +224,16 @@ _instance_copy_stderr() {
 
 # Prints the `docker inspect` format of instance_status_print, one line
 # each: the image name, the image ID, "<runtime> <privileged>", the ports
-# (HOST->CONTAINER/proto, space-separated) and the env keys.
+# (HOST->CONTAINER/proto, space-separated), the env keys, the log driver
+# and the log option words (KEY=VALUE, space-separated). Append only: the
+# line numbers are positional.
 # Usage: _instance_status_format
 _instance_status_format() {
   # shellcheck disable=SC2016 # a Go template, not shell
   printf '%s' '{{.Config.Image}}{{"\n"}}{{.Image}}{{"\n"}}{{.HostConfig.Runtime}} {{.HostConfig.Privileged}}{{"\n"}}{{range $p, $b := .HostConfig.PortBindings}}{{range $b}}{{.HostPort}}->{{$p}} {{end}}{{end}}{{"\n"}}'
   _instance_env_keys_format
+  # shellcheck disable=SC2016 # a Go template, not shell
+  printf '%s' '{{"\n"}}{{.HostConfig.LogConfig.Type}}{{"\n"}}{{range $k, $v := .HostConfig.LogConfig.Config}}{{$k}}={{$v}} {{end}}'
 }
 
 # Prints the format listing the env keys (space-separated, values dropped).
@@ -204,6 +251,23 @@ _instance_runtime() {
     *' true') printf '%s\n' privileged ;;
     *) printf '%s\n' "${1% *}" ;;
   esac
+}
+
+# Prints the option words with the value of every sensitive key replaced by
+# "***". A key is sensitive when it contains token, password, secret or
+# credential, case-insensitively.
+# Usage: _instance_mask_log_opts <option-words>
+_instance_mask_log_opts() {
+  local word key lower masked=()
+  for word in $1; do
+    key="${word%%=*}"
+    lower="$(printf '%s' "$key" | tr '[:upper:]' '[:lower:]')"
+    case "$lower" in
+      *token* | *password* | *secret* | *credential*) masked+=("$key=***") ;;
+      *) masked+=("$word") ;;
+    esac
+  done
+  printf '%s ' ${masked[@]+"${masked[@]}"}
 }
 
 # Prints the words of <words> that are not in <drop> (space-separated).

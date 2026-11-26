@@ -104,8 +104,8 @@ _vault_complete() {
 # Usage: _vault_complete_options <command>
 _vault_complete_options() {
   case "$1" in
-    up) echo '--name --image --runtime -p --port -v --volume -e --env --env-file --stop-timeout -f --attach -h --help' ;;
-    run) echo '--name --image --runtime -p --port -v --volume -e --env --env-file --stop-timeout -h --help' ;;
+    up) echo '--name --image --runtime -p --port -v --volume -e --env --env-file --log-opt --stop-timeout -f --attach -h --help' ;;
+    run) echo '--name --image --runtime -p --port -v --volume -e --env --env-file --log-opt --stop-timeout -h --help' ;;
     down) echo '--name --image --stop-timeout -h --help' ;;
     logs) echo '--name --image -f --follow -h --help' ;;
     status | compose) echo '--name --image -h --help' ;;
@@ -116,7 +116,7 @@ _vault_complete_options() {
 # Usage: _vault_complete_takes_value <option>
 _vault_complete_takes_value() {
   case "$1" in
-    --name | --image | --runtime | -p | --port | -v | --volume | -e | --env | --env-file | --stop-timeout)
+    --name | --image | --runtime | -p | --port | -v | --volume | -e | --env | --env-file | --log-opt | --stop-timeout)
       return 0
       ;;
   esac

@@ -66,7 +66,8 @@ vault_help() {
 }
 
 # Starts vault-<name>: detached by default, in the foreground with -f.
-# Already running: no-op, prints the status. Stopped: docker rm, then a
+# Already running: no-op, prints the status and warns when the requested
+# log options differ. Stopped: docker rm, then a
 # fresh docker run with the current flags (the volume is kept).
 # Usage: vault_up [options] [dir]
 vault_up() {
@@ -88,7 +89,8 @@ vault_up() {
   case "$INSTANCE_STATE" in
     running)
       printf '%s is already running\n' "$container"
-      instance_status_print "$NAMING_NAME" running
+      instance_status_print "$NAMING_NAME" running || return
+      instance_warn_stale_log_opts
       return
       ;;
     stopped)
