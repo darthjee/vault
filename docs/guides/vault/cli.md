@@ -9,7 +9,7 @@ a project directory and manages the resulting container:
 ```bash
 cd my-stack            # a directory with a compose file
 vault up               # start it, detached, on http://localhost:3000
-vault status           # state, image, runtime, ports, volume, env keys
+vault status           # state, image, runtime, ports, volume, env keys, logs
 vault compose ps       # run "docker compose ps" inside the instance
 vault logs -f          # follow the logs
 vault down             # stop and remove it (the data volume is kept)
@@ -144,7 +144,7 @@ vault <command> [options] [dir] [args]
 | `vault up [options] [dir]` | Starts the instance `vault-<name>`. Detached by default (prints `vault-<name> started`); `-f` / `--attach` runs it in the foreground, where Ctrl+C triggers the graceful shutdown. Already running: no-op, prints `vault-<name> is already running` and the status. Stopped: removed, then started again with the current options (the data volume is kept). |
 | `vault down [options] [dir]` | Stops (`docker stop -t <stop-timeout>`) and removes the instance; prints `vault-<name> stopped and removed (volume vault-<name>-data kept)`. The data volume is **never** removed. A missing instance is not an error (`vault-<name> does not exist`). |
 | `vault logs [options] [-f] [dir]` | Shows the instance logs; `-f` / `--follow` follows them. Fails when the instance is not running. |
-| `vault status [options] [dir]` | Prints the name, state (`running`, `stopped`, `not found`), image, runtime, ports, volume and env keys (never values). Exits `0` whatever the state. |
+| `vault status [options] [dir]` | Prints the name, state (`running`, `stopped`, `not found`), image, runtime, ports, volume, env keys (never values) and logs. Exits `0` whatever the state. |
 | `vault compose [options] <args>` | Runs `docker compose <args>` inside the running instance. Fails when the instance is not running. |
 | `vault run [options] [dir] <args>` | One-shot `docker run --rm` in the foreground, passing `<args>` to the image. Refused while the instance is running, since both would share its data volume. |
 | `vault version` | Prints `vault X.Y.Z`. |
@@ -158,7 +158,7 @@ vault up -f                  # foreground; Ctrl+C stops the stack gracefully
 vault up ./my-stack          # another project directory
 vault down                   # stop and remove; the data volume is kept
 vault logs -f                # follow the logs
-vault status                 # state, image, runtime, ports, volume, env keys
+vault status                 # state, image, runtime, ports, volume, env keys, logs
 vault compose ps             # docker compose ps inside the instance
 vault compose exec app sh    # a shell in the app service
 vault run config             # one-shot: print the resolved compose file
@@ -176,6 +176,7 @@ runtime:  sysbox-runc
 ports:    3000->80/tcp
 volume:   vault-my-stack-data
 env:      COMPOSE_UP_ARGS
+logs:     json-file max-file=2, max-size=10m
 ```
 
 A missing instance prints only `name:` and `state:    not found`.
@@ -291,6 +292,7 @@ vault up --name app-b -p 3001:80 ~/b/app
 | `-v`, `--volume <SRC:DST>` | `up`, `run` | none | Extra mount; repeatable. |
 | `-e`, `--env <KEY=VALUE>` | `up`, `run` | none | Env var for the Vault container; repeatable. |
 | `--env-file <file>` | `up`, `run` | none | Env file; repeatable. |
+| `--log-opt <KEY=VALUE>` | `up`, `run` | none | Docker log option for the container (e.g. `max-size=10m`); repeatable. The CLI only checks the `KEY=VALUE` shape; Docker validates keys and values. |
 | `--stop-timeout <seconds>` | `up`, `run`, `down` | `60` | Seconds to wait for the graceful shutdown before docker kills the container (positive integer). |
 | `-f`, `--attach` | `up` | off | Run in the foreground. |
 | `-f`, `--follow` | `logs` | off | Follow the logs. |
@@ -312,6 +314,12 @@ vault up --name app-b -p 3001:80 ~/b/app
   ```bash
   vault up -e COMPOSE_UP_ARGS="--abort-on-container-exit" -p 8080:80
   ```
+
+- Log options (`--log-opt max-size=10m --log-opt max-file=3`) bound the Vault container's own
+  log. They apply only when the container is created: on a running instance run `vault down`
+  then `vault up` (`up` warns when they differ from the running ones). Only the outer
+  container's log is bounded, not the inner services' logs in the `vault-<name>-data` volume.
+  Host `daemon.json` `log-opts` are merged in per key.
 
 - What the stop timeout covers (the shutdown sequence) is described in
   [operations.md → Shutdown](operations.md#shutdown).
@@ -347,6 +355,8 @@ volume=./shared:/shared
 env=RAILS_ENV=production
 env-file=.env.prod
 stop-timeout=90
+log-opt=max-size=10m
+log-opt=max-file=3
 ```
 
 | Key | Option | Repeatable |
@@ -359,6 +369,7 @@ stop-timeout=90
 | `volume` | `-v`, `--volume` | yes, one entry per line |
 | `env` | `-e`, `--env` | yes, one entry per line |
 | `env-file` | `--env-file` | yes, one entry per line |
+| `log-opt` | `--log-opt` | yes, one entry per line |
 
 - One `key=value` per line. The value is taken verbatim: no quoting, no variable expansion, no
   `~` expansion. `#` starts a comment only at the beginning of a line; blank lines are
@@ -369,6 +380,9 @@ stop-timeout=90
   stays a named volume. Relative paths given as flags are passed to docker as given.
 - `image=` changes the image only: unlike `--image`, it does not change the name default nor
   skip the `/vault` mount.
+- `log-opt` requires vault CLI 0.4.0 or later (older CLIs only warn `unknown key`). Do not
+  put credentials in a committed `.vaultrc`; `vault status` masks values of keys containing
+  `token`, `password`, `secret` or `credential` as `<key>=***`.
 - An unknown key warns (`vault: warning: .vaultrc:<line>: unknown key '<key>'`) and is skipped.
 - A line without `=` (`.vaultrc:<line>: expected key=value`) or an invalid value
   (`.vaultrc:<line>: invalid value for <key>: '<value>'`) fails with exit `1`.
@@ -380,6 +394,7 @@ stop-timeout=90
 - Single-value keys: the flag, else the `.vaultrc` value, else the default.
 - Repeatable keys: any flag replaces every `.vaultrc` entry of that key (one `-p` drops all
   `port=` lines). `.vault.env` is not a `.vaultrc` entry: it always stays first.
+- `--log-opt`: any flag replaces every `log-opt=` line; duplicate keys keep the last one.
 
 ```bash
 vault up                  # ports 3000:80 and 3443:443, from .vaultrc
